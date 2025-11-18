@@ -1,11 +1,24 @@
 #include "cpu.h"
 #include "cart.h"
 #include "ppu.h"
+#include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 void cpu_clock(_cpu* cpu) {
+    cpu->total_cycles++;
+    if (--cpu->cycles) return;
 
+    uint8_t opcode = cpu_read(cpu, cpu->pc++);
+    cpu->instr = instructions[opcode];
+    cpu->cycles = cpu->instr.cycles;
+    uint8_t am_cycle = cpu->instr.ex_am(cpu);
+
+    print_state(cpu);
+
+    uint8_t op_cycle = cpu->instr.ex_op(cpu);
+    cpu->cycles += (am_cycle & op_cycle);
 }
 
 void cpu_reset(_cpu* cpu) {
@@ -44,15 +57,13 @@ void cpu_irq(_cpu* cpu) {
     cpu->cycles = 7;
 }
 
-void cpu_nmi(_cpu* cpu) {
-    int brk_nmi = !strcmp(cpu->instr.opcode, "brk");
-    if (!brk_nmi)
-        cpu->pc++;
+void cpu_nmi(_cpu* cpu, uint8_t brk) {
+    if (!brk) cpu->pc++;
 
     push(cpu, cpu->pc >> 8);
     push(cpu, cpu->pc & 0xFF);
 
-    set_flag(cpu, _B, brk_nmi);
+    set_flag(cpu, _B, brk);
     set_flag(cpu, _U, 1);
     set_flag(cpu, _I, 1);
     push(cpu, cpu->p);
@@ -69,20 +80,41 @@ uint8_t cpu_read(_cpu* cpu, uint16_t addr) {
     if (0x0000 <= addr && addr <= 0x1FFF) {
         data = cpu->ram[addr & 0x07FF];
     } else if (0x2000 <= addr && addr <= 0x3FFF) {
-        uint16_t reg_addr = 0x2000 | (addr & 0x0007);
-        data = ppu_cpu_read(cpu->p_ppu, reg_addr);
+        if (cpu->p_ppu) {
+            uint16_t reg_addr = 0x2000 | (addr & 0x0007);
+            data = ppu_cpu_read(cpu->p_ppu, reg_addr);
+        }
     } else if (0x4000 <= addr && addr <= 0x4017) {
         // TODO: APU
     } else if (0x4020 <= addr && addr <= 0xFFFF) {
-        return cart_read(cpu->p_cart, addr);
+        if (cpu->p_cart) {
+            data = cart_read(cpu->p_cart, addr);
+        }
     }
 
     return 0x00;
 }
 
+void cpu_write(_cpu* cpu, uint16_t addr, uint8_t data) {
+    if (0x0000 <= addr && addr <= 0x1FFF) {
+        cpu->ram[addr & 0x07FF] = data;
+    } else if (0x2000 <= addr && addr <= 0x3FFF) {
+        if (cpu->p_ppu) {
+            uint16_t reg_addr = 0x2000 | (addr & 0x0007);
+            ppu_cpu_write(cpu->p_ppu, reg_addr, data);
+        }
+    } else if (0x4000 <= addr && addr <= 0x4017) {
+        // TODO: APU
+    } else if (0x4020 <= addr && addr <= 0xFFFF) {
+        if (cpu->p_cart) {
+            cart_write(cpu->p_cart, addr, data);
+        }
+    }
+}
+
 uint8_t no_fetch(_cpu* cpu) {
-    return strcmp(cpu->instr.mode, "imp") |
-        strcmp(cpu->instr.mode, "acc");
+    return cpu->instr.mode_num == _imp ||
+        cpu->instr.mode_num == _acc;
 }
 
 uint8_t cpu_fetch(_cpu* cpu) {
@@ -93,19 +125,6 @@ uint8_t cpu_fetch(_cpu* cpu) {
 void cpu_write_back(_cpu* cpu, uint8_t result) {
     if (no_fetch(cpu)) cpu->a = result & 0xFF;
     else cpu_write(cpu, cpu->op_addr, result & 0xFF);
-}
-
-void cpu_write(_cpu* cpu, uint16_t addr, uint8_t data) {
-    if (0x0000 <= addr && addr <= 0x1FFF) {
-        cpu->ram[addr & 0x07FF] = data;
-    } else if (0x2000 <= addr && addr <= 0x3FFF) {
-        uint16_t reg_addr = 0x2000 | (addr & 0x0007);
-        ppu_cpu_write(cpu->p_ppu, reg_addr, data);
-    } else if (0x4000 <= addr && addr <= 0x4017) {
-        // TODO: APU
-    } else if (0x4020 <= addr && addr <= 0xFFFF) {
-        cart_write(cpu->p_cart, addr, data);
-    }
 }
 
 uint8_t get_flag(_cpu* cpu, _cpu_flag flag) {
@@ -305,7 +324,7 @@ uint8_t op_bpl(_cpu* cpu) {
 }
 
 uint8_t op_brk(_cpu* cpu) {
-    cpu_nmi(cpu);
+    cpu_nmi(cpu, 1);
     return 0;
 }
 
@@ -626,4 +645,70 @@ uint8_t op_tya(_cpu* cpu) {
 uint8_t op____(_cpu* cpu) {
     fprintf(stderr, "ERROR: _Illegal instruction called!");
     return 0;
+}
+
+
+uint8_t* up_mnem(uint8_t* str) {
+    unsigned long len = strlen((const char*)str);
+    uint8_t* new = (uint8_t*)calloc(len + 1, sizeof(uint8_t));
+
+    for (uint8_t i = 0; i < len; i++)
+        new[i] = toupper(str[i]);
+
+    return new;
+}
+
+void print_state(_cpu* cpu) {
+    uint16_t start_pc = cpu->pc - cpu->instr.opcount - 1;
+    printf("$%04X  ", start_pc);
+
+    uint8_t ops[3];
+    for (uint8_t am_op = 0; am_op < 3; am_op++) {
+        if (am_op <= cpu->instr.opcount) {
+            uint8_t op_data = cpu_read(cpu, start_pc + am_op);
+            printf("%02X ", op_data);
+            ops[am_op] = op_data;
+        } else {
+            printf("   ");
+        }
+    }
+
+    uint8_t* am_name = up_mnem(cpu->instr.mode);
+    printf(" (%s) ", am_name);
+    free(am_name);
+
+    uint8_t* op_name = up_mnem(cpu->instr.opcode);
+    printf(" %s ", op_name);
+    free(op_name);
+
+    switch (cpu->instr.mode_num) {
+        case _abs: printf("$%04X                      ", cpu->op_addr); break;
+        case _abx: printf("$%02X%02X,X @ %04X             ", ops[2], ops[1], cpu->op_addr); break;
+        case _aby: printf("$%02X%02X,Y @ %04X             ", ops[2], ops[1], cpu->op_addr); break;
+        case _imm: printf("#$%02X                       ", ops[1]); break;
+        case _zpg: printf("$%02X                        ", ops[1]); break;
+        case _zpx: printf("$%02X,X @ %02X                 ", ops[1], cpu->op_addr); break;
+        case _zpy: printf("$%02X,X @ %02X                 ", ops[1], cpu->op_addr); break;
+        case _imp: printf("                           "); break;
+        case _acc: printf("A                          "); break;
+        case _idr: printf("($%02X%02X) = %04X             ", ops[2], ops[1], cpu->op_addr); break;
+        case _idx: printf("($%02X,X) @ %02X = %04X        ", ops[1], (uint8_t)(ops[1] + cpu->x), cpu->op_addr); break;
+        case _idy: printf("($%02X,Y) @ %02X = %04X        ", ops[1], (uint8_t)(ops[1] + cpu->y), cpu->op_addr); break;
+        case _rel: printf("$%04X                      ", (uint16_t)(cpu->op_addr + cpu->pc)); break;
+        default: break;
+    }
+
+    uint8_t stat_str[9];
+    stat_str[0] = get_flag(cpu, _N) ? 'N' : 'n';
+    stat_str[1] = get_flag(cpu, _V) ? 'V' : 'v';
+    stat_str[2] = '-';
+    stat_str[3] = get_flag(cpu, _B) ? 'B' : 'b';
+    stat_str[4] = get_flag(cpu, _D) ? 'D' : 'd';
+    stat_str[5] = get_flag(cpu, _I) ? 'I' : 'i';
+    stat_str[6] = get_flag(cpu, _Z) ? 'Z' : 'z';
+    stat_str[7] = get_flag(cpu, _C) ? 'C' : 'c';
+    stat_str[8] = 0;
+
+    printf("A:%02X X:%02X Y:%02X ST:%s SP:%02X PPU: %03d,%03d CY:%06llu",
+        cpu->a, cpu->x, cpu->y, stat_str, cpu->s, 0, 0, cpu->total_cycles);
 }

@@ -5,7 +5,9 @@
 #define RST_VECTOR 0xFFFC
 #define IRQ_VECTOR 0xFFFE
 
-#define IN(opcode, mode, cycles, opcount) {#opcode, #mode, op_##opcode, am_##mode, cycles, opcount}
+#define IN(opcode, mode, cycles, opcount) \
+    {#opcode, #mode, _##mode, op_##opcode, am_##mode, cycles, opcount}
+
 #define ILLEGAL_INSTRUC IN(___, ___, 0, 0)
 #define OPF(opcode) op_##opcode(_cpu* cpu)
 #define AMF(mode) am_##mode(_cpu* cpu)
@@ -15,8 +17,9 @@ typedef struct _ppu _ppu;
 typedef struct _cart _cart;
 
 typedef struct _instr {
-    char opcode[4];             // name of opcode
-    char mode[4];               // name of addressing mode
+    uint8_t opcode[4];          // name of opcode
+    uint8_t mode[4];            // name of addressing mode
+    uint8_t mode_num;           // enum value of addressing mode
     uint8_t (*ex_op)(_cpu*);    // fn pointer to operation
     uint8_t (*ex_am)(_cpu*);    // fn pointer to addressing mode
     uint8_t cycles;             // number of cpu cycles for execution
@@ -35,10 +38,9 @@ typedef struct _cpu {
     uint16_t op_addr;       // address of first operand
     uint8_t op_data;        // data buffer from address mode to operation
 
-    uint8_t halt;
+    uint8_t halt;           // halt execution
     uint8_t cycles;         // instr cycle counter
-    uint8_t irq_pending;    // interrupt request
-    uint8_t nmi_pending;    // non-maskable interrupt
+    uint64_t total_cycles;  // total cycle counter
     uint8_t ram[0x800];     // cpu memory
 
     _ppu* p_ppu;              // ref for ppu regs cpu-side
@@ -56,6 +58,11 @@ typedef enum _cpu_flag {
     _N = (1 << 7),  // negative
 } _cpu_flag;
 
+typedef enum _addr_mode {
+    _acc, _imp, _imm, _zpg, _zpx, _zpy, _abs, _abx,
+    _aby, _idr, _idx, _idy, _rel, ____
+} _addr_mode;
+
 uint8_t OPF(adc), OPF(and), OPF(asl), OPF(bcc), OPF(bcs), OPF(beq), OPF(bit), OPF(bmi),
         OPF(bne), OPF(bpl), OPF(brk), OPF(bvc), OPF(bvs), OPF(clc), OPF(cld), OPF(cli),
         OPF(clv), OPF(cmp), OPF(cpx), OPF(cpy), OPF(dec), OPF(dex), OPF(dey), OPF(eor),
@@ -71,7 +78,7 @@ uint8_t AMF(acc), AMF(imp), AMF(imm), AMF(zpg), AMF(zpx), AMF(zpy), AMF(abs), AM
 void cpu_clock(_cpu* cpu);
 void cpu_reset(_cpu* cpu);
 void cpu_irq(_cpu* cpu);
-void cpu_nmi(_cpu* cpu);
+void cpu_nmi(_cpu* cpu, uint8_t brk);
 
 uint8_t cpu_read(_cpu* cpu, uint16_t addr);
 void cpu_write(_cpu* cpu, uint16_t addr, uint8_t data);
@@ -85,6 +92,8 @@ void set_flag(_cpu* cpu, _cpu_flag flag, uint8_t set);
 
 void push(_cpu* cpu, uint8_t data);
 uint8_t pull(_cpu* cpu);
+
+void print_state(_cpu* cpu);
 
 static _instr instructions[256] = {
     IN(brk,imp,7,0), IN(ora,idx,6,1), ILLEGAL_INSTRUC, ILLEGAL_INSTRUC, ILLEGAL_INSTRUC, IN(ora,zpg,3,1), IN(asl,zpg,5,1), ILLEGAL_INSTRUC,     // 0x00 - 0x07
