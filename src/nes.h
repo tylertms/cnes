@@ -1,5 +1,4 @@
 #pragma once
-
 #include "cpu.h"
 #include "ppu.h"
 #include "apu.h"
@@ -14,8 +13,6 @@ typedef struct _nes {
     _apu apu;
     _cart cart;
     _input input;
-
-    uint8_t ram[0x800];
 
     uint32_t master_clock;
     uint8_t cpu_div;
