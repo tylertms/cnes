@@ -10,9 +10,14 @@ void nes_init(_nes *nes) {
 }
 
 void nes_reset(_nes *nes) {
-
+    cpu_reset(&nes->cpu);
 }
 
 void nes_clock(_nes *nes) {
+    ppu_clock(&nes->ppu);
 
+    if (++nes->cpu_div == 3) {
+        nes->cpu_div = 0;
+        cpu_clock(&nes->cpu);
+    }
 }

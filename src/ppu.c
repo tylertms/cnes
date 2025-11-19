@@ -1,5 +1,9 @@
 #include "ppu.h"
 
+void ppu_clock(_ppu* ppu) {
+
+}
+
 uint8_t ppu_cpu_read(_ppu* ppu, uint16_t addr) {
     return 0x00;
 }
