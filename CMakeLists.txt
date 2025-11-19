@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(CNES LANGUAGES C)
+project(cnes LANGUAGES C)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -9,7 +9,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(SDL3)
 
-add_executable(CNES
+add_executable(cnes
     src/apu.c
     src/cart.c
     src/cpu.c
@@ -20,4 +20,4 @@ add_executable(CNES
     src/ppu.c
 )
 
-target_link_libraries(CNES PRIVATE SDL3::SDL3)
+target_link_libraries(cnes PRIVATE SDL3::SDL3)
