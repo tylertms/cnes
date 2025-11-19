@@ -31,7 +31,7 @@ void cpu_reset(_cpu* cpu) {
     cpu->x = 0x00;
     cpu->y = 0x00;
     cpu->s = 0xFD;
-    cpu->p = 0x00 | _U | _I;
+    cpu->p = 0x00 | UNUSED | IRQ_DS;
 
     cpu->op_addr = 0x0000;
     cpu->op_data = 0x00;
@@ -41,15 +41,15 @@ void cpu_reset(_cpu* cpu) {
 }
 
 void cpu_irq(_cpu* cpu) {
-    if (!get_flag(cpu, _I))
+    if (!get_flag(cpu, IRQ_DS))
         return;
 
     push(cpu, cpu->pc >> 8);
     push(cpu, cpu->pc & 0xFF);
 
-    set_flag(cpu, _B, 0);
-    set_flag(cpu, _U, 1);
-    set_flag(cpu, _I, 1);
+    set_flag(cpu, BREAK, 0);
+    set_flag(cpu, UNUSED, 1);
+    set_flag(cpu, IRQ_DS, 1);
     push(cpu, cpu->p);
 
     uint16_t low = cpu_read(cpu, IRQ_VECTOR);
@@ -64,13 +64,13 @@ void cpu_nmi(_cpu* cpu, uint8_t brk) {
     push(cpu, cpu->pc >> 8);
     push(cpu, cpu->pc & 0xFF);
 
-    set_flag(cpu, _B, brk);
-    set_flag(cpu, _U, 1);
-    set_flag(cpu, _I, 1);
+    set_flag(cpu, BREAK, brk);
+    set_flag(cpu, UNUSED, 1);
+    set_flag(cpu, IRQ_DS, 1);
     push(cpu, cpu->p);
 
-    uint16_t low = cpu_read(cpu, NMI_VECTOR);
-    uint16_t high = cpu_read(cpu, NMI_VECTOR + 1);
+    uint16_t low = cpu_read(cpu, brk ? IRQ_VECTOR : NMI_VECTOR);
+    uint16_t high = cpu_read(cpu, brk ? IRQ_VECTOR + 1 : NMI_VECTOR + 1);
     cpu->pc = (high << 8) | low;
     cpu->cycles = 8;
 }
@@ -248,13 +248,13 @@ uint8_t am____(_cpu* cpu) {
 
 uint8_t op_adc(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
-    uint16_t res = (uint16_t)cpu->a + (uint16_t)memory + get_flag(cpu, _C);
+    uint16_t res = (uint16_t)cpu->a + (uint16_t)memory + get_flag(cpu, CARRY);
 
     uint16_t overflow = (res ^ cpu->a) & (res ^ memory) & 0x80;
-    set_flag(cpu, _C, res > 0xFF);
-    set_flag(cpu, _Z, (res & 0xFF) == 0x00);
-    set_flag(cpu, _V, overflow);
-    set_flag(cpu, _N, res & 0x80);
+    set_flag(cpu, CARRY, res > 0xFF);
+    set_flag(cpu, ZERO, (res & 0xFF) == 0x00);
+    set_flag(cpu, OVERFLOW, overflow);
+    set_flag(cpu, NEGATIVE, res & 0x80);
 
     cpu->a = res & 0xFF;
 	return 1;
@@ -263,36 +263,36 @@ uint8_t op_adc(_cpu* cpu) {
 uint8_t op_and(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     cpu->a &= memory;
-    set_flag(cpu, _Z, cpu->a == 0x00);
-    set_flag(cpu, _N, cpu->a & 0x80);
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
 	return 1;
 }
 
 uint8_t op_asl(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     uint16_t res = (uint16_t)memory << 1;
-    set_flag(cpu, _C, res > 255);
-    set_flag(cpu, _Z, (res & 0xFF) == 0x00);
-    set_flag(cpu, _N, res & 0x80);
+    set_flag(cpu, CARRY, res > 255);
+    set_flag(cpu, ZERO, (res & 0xFF) == 0x00);
+    set_flag(cpu, NEGATIVE, res & 0x80);
     cpu_write_back(cpu, res);
 	return 0;
 }
 
 uint8_t op_bcc(_cpu* cpu) {
-    if (!get_flag(cpu, _C))
+    if (!get_flag(cpu, CARRY))
         branch(cpu);
 
 	return 0;
 }
 
 uint8_t op_bcs(_cpu* cpu) {
-    if (get_flag(cpu, _C))
+    if (get_flag(cpu, CARRY))
         branch(cpu);
 	return 0;
 }
 
 uint8_t op_beq(_cpu* cpu) {
-    if (get_flag(cpu, _Z))
+    if (get_flag(cpu, ZERO))
         branch(cpu);
     return 0;
 }
@@ -300,26 +300,26 @@ uint8_t op_beq(_cpu* cpu) {
 uint8_t op_bit(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     uint8_t res = cpu->a & memory;
-    set_flag(cpu, _Z, res == 0x00);
-    set_flag(cpu, _V, memory & 0x40);
-    set_flag(cpu, _N, memory & 0x80);
+    set_flag(cpu, ZERO, res == 0x00);
+    set_flag(cpu, OVERFLOW, memory & 0x40);
+    set_flag(cpu, NEGATIVE, memory & 0x80);
 	return 0;
 }
 
 uint8_t op_bmi(_cpu* cpu) {
-    if (get_flag(cpu, _N))
+    if (get_flag(cpu, NEGATIVE))
         branch(cpu);
 	return 0;
 }
 
 uint8_t op_bne(_cpu* cpu) {
-    if (!get_flag(cpu, _Z))
+    if (!get_flag(cpu, ZERO))
         branch(cpu);
 	return 0;
 }
 
 uint8_t op_bpl(_cpu* cpu) {
-    if (!get_flag(cpu, _N))
+    if (!get_flag(cpu, NEGATIVE))
         branch(cpu);
 	return 0;
 }
@@ -330,110 +330,110 @@ uint8_t op_brk(_cpu* cpu) {
 }
 
 uint8_t op_bvc(_cpu* cpu) {
-    if (!get_flag(cpu, _V))
+    if (!get_flag(cpu, OVERFLOW))
         branch(cpu);
 	return 0;
 }
 
 uint8_t op_bvs(_cpu* cpu) {
-    if (get_flag(cpu, _V))
+    if (get_flag(cpu, OVERFLOW))
         branch(cpu);
 	return 0;
 }
 
 uint8_t op_clc(_cpu* cpu) {
-    set_flag(cpu, _C, 0);
+    set_flag(cpu, CARRY, 0);
 	return 0;
 }
 
 uint8_t op_cld(_cpu* cpu) {
-    set_flag(cpu, _D, 0);
+    set_flag(cpu, DECIMAL, 0);
 	return 0;
 }
 
 uint8_t op_cli(_cpu* cpu) {
-    set_flag(cpu, _I, 0);
+    set_flag(cpu, IRQ_DS, 0);
 	return 0;
 }
 
 uint8_t op_clv(_cpu* cpu) {
-    set_flag(cpu, _V, 0);
+    set_flag(cpu, OVERFLOW, 0);
 	return 0;
 }
 
 uint8_t op_cmp(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
-    set_flag(cpu, _C, cpu->a >= memory);
-    set_flag(cpu, _Z, cpu->a == memory);
-    set_flag(cpu, _N, (cpu->a - memory) & 0x80);
+    set_flag(cpu, CARRY, cpu->a >= memory);
+    set_flag(cpu, ZERO, cpu->a == memory);
+    set_flag(cpu, NEGATIVE, (cpu->a - memory) & 0x80);
     return 1;
 }
 
 uint8_t op_cpx(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
-    set_flag(cpu, _C, cpu->x >= memory);
-    set_flag(cpu, _Z, cpu->x == memory);
-    set_flag(cpu, _N, (cpu->x - memory) & 0x80);
+    set_flag(cpu, CARRY, cpu->x >= memory);
+    set_flag(cpu, ZERO, cpu->x == memory);
+    set_flag(cpu, NEGATIVE, (cpu->x - memory) & 0x80);
 	return 0;
 }
 
 uint8_t op_cpy(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
-    set_flag(cpu, _C, cpu->y >= memory);
-    set_flag(cpu, _Z, cpu->y == memory);
-    set_flag(cpu, _N, (cpu->y - memory) & 0x80);
+    set_flag(cpu, CARRY, cpu->y >= memory);
+    set_flag(cpu, ZERO, cpu->y == memory);
+    set_flag(cpu, NEGATIVE, (cpu->y - memory) & 0x80);
 	return 0;
 }
 
 uint8_t op_dec(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu) - 1;
     cpu_write(cpu, cpu->op_addr, memory);
-    set_flag(cpu, _Z, memory == 0x00);
-    set_flag(cpu, _N, memory & 0x80);
+    set_flag(cpu, ZERO, memory == 0x00);
+    set_flag(cpu, NEGATIVE, memory & 0x80);
 	return 0;
 }
 
 uint8_t op_dex(_cpu* cpu) {
     cpu->x--;
-    set_flag(cpu, _Z, cpu->x == 0x00);
-    set_flag(cpu, _N, cpu->x & 0x80);
+    set_flag(cpu, ZERO, cpu->x == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->x & 0x80);
 	return 0;
 }
 
 uint8_t op_dey(_cpu* cpu) {
     cpu->y--;
-    set_flag(cpu, _Z, cpu->y == 0x00);
-    set_flag(cpu, _N, cpu->y & 0x80);
+    set_flag(cpu, ZERO, cpu->y == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->y & 0x80);
 	return 0;
 }
 
 uint8_t op_eor(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     cpu->a ^= memory;
-    set_flag(cpu, _Z, cpu->a == 0x00);
-    set_flag(cpu, _N, cpu->a & 0x80);
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
 	return 1;
 }
 
 uint8_t op_inc(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu) + 1;
     cpu_write(cpu, cpu->op_addr, memory);
-    set_flag(cpu, _Z, memory == 0x00);
-    set_flag(cpu, _N, memory & 0x80);
+    set_flag(cpu, ZERO, memory == 0x00);
+    set_flag(cpu, NEGATIVE, memory & 0x80);
 	return 0;
 }
 
 uint8_t op_inx(_cpu* cpu) {
     cpu->x++;
-    set_flag(cpu, _Z, cpu->x == 0x00);
-    set_flag(cpu, _N, cpu->x & 0x80);
+    set_flag(cpu, ZERO, cpu->x == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->x & 0x80);
 	return 0;
 }
 
 uint8_t op_iny(_cpu* cpu) {
     cpu->y++;
-    set_flag(cpu, _Z, cpu->y == 0x00);
-    set_flag(cpu, _N, cpu->y & 0x80);
+    set_flag(cpu, ZERO, cpu->y == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->y & 0x80);
 	return 0;
 }
 
@@ -453,24 +453,24 @@ uint8_t op_jsr(_cpu* cpu) {
 uint8_t op_lda(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     cpu->a = memory;
-    set_flag(cpu, _Z, memory == 0x00);
-    set_flag(cpu, _N, memory & 0x80);
+    set_flag(cpu, ZERO, memory == 0x00);
+    set_flag(cpu, NEGATIVE, memory & 0x80);
 	return 1;
 }
 
 uint8_t op_ldx(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     cpu->x = memory;
-    set_flag(cpu, _Z, memory == 0x00);
-    set_flag(cpu, _N, memory & 0x80);
+    set_flag(cpu, ZERO, memory == 0x00);
+    set_flag(cpu, NEGATIVE, memory & 0x80);
 	return 1;
 }
 
 uint8_t op_ldy(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     cpu->y = memory;
-    set_flag(cpu, _Z, memory == 0x00);
-    set_flag(cpu, _N, memory & 0x80);
+    set_flag(cpu, ZERO, memory == 0x00);
+    set_flag(cpu, NEGATIVE, memory & 0x80);
 	return 1;
 }
 
@@ -478,9 +478,9 @@ uint8_t op_lsr(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     uint8_t res = memory >> 1;
 
-    set_flag(cpu, _C, memory & 0x01);
-    set_flag(cpu, _Z, res == 0x00);
-    set_flag(cpu, _N, 0);
+    set_flag(cpu, CARRY, memory & 0x01);
+    set_flag(cpu, ZERO, res == 0x00);
+    set_flag(cpu, NEGATIVE, 0);
 
     cpu_write_back(cpu, res);
 	return 0;
@@ -493,8 +493,8 @@ uint8_t op_nop(_cpu* cpu) {
 uint8_t op_ora(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     cpu->a |= memory;
-    set_flag(cpu, _Z, cpu->a == 0x00);
-    set_flag(cpu, _N, cpu->a & 0x80);
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
 	return 1;
 }
 
@@ -504,29 +504,29 @@ uint8_t op_pha(_cpu* cpu) {
 }
 
 uint8_t op_php(_cpu* cpu) {
-    push(cpu, cpu->p | _B);
+    push(cpu, cpu->p | BREAK);
 	return 0;
 }
 
 uint8_t op_pla(_cpu* cpu) {
     cpu->a = pull(cpu);
-    set_flag(cpu, _Z, cpu->a == 0x00);
-    set_flag(cpu, _N, cpu->a & 0x80);
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
 	return 0;
 }
 
 uint8_t op_plp(_cpu* cpu) {
-    cpu->p = pull(cpu) | _U;
+    cpu->p = pull(cpu) | UNUSED;
     return 0;
 }
 
 uint8_t op_rol(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
-    uint8_t res = (memory << 1) | get_flag(cpu, _C);
+    uint8_t res = (memory << 1) | get_flag(cpu, CARRY);
 
-    set_flag(cpu, _C, memory & 0x80);
-    set_flag(cpu, _Z, res == 0x00);
-    set_flag(cpu, _N, res & 0x80);
+    set_flag(cpu, CARRY, memory & 0x80);
+    set_flag(cpu, ZERO, res == 0x00);
+    set_flag(cpu, NEGATIVE, res & 0x80);
 
     cpu_write_back(cpu, res);
 	return 0;
@@ -534,18 +534,18 @@ uint8_t op_rol(_cpu* cpu) {
 
 uint8_t op_ror(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
-    uint8_t res = (memory >> 1) | (get_flag(cpu, _C) << 7);
+    uint8_t res = (memory >> 1) | (get_flag(cpu, CARRY) << 7);
 
-    set_flag(cpu, _C, memory & 0x01);
-    set_flag(cpu, _Z, res == 0x00);
-    set_flag(cpu, _N, res & 0x80);
+    set_flag(cpu, CARRY, memory & 0x01);
+    set_flag(cpu, ZERO, res == 0x00);
+    set_flag(cpu, NEGATIVE, res & 0x80);
 
     cpu_write_back(cpu, res);
 	return 0;
 }
 
 uint8_t op_rti(_cpu* cpu) {
-    cpu->p = pull(cpu) & ~_B & ~_U;
+    cpu->p = pull(cpu) & ~BREAK & ~UNUSED;
     cpu->pc = pull(cpu);
     cpu->pc |= (uint16_t)pull(cpu) << 8;
 	return 0;
@@ -561,30 +561,30 @@ uint8_t op_rts(_cpu* cpu) {
 uint8_t op_sbc(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     uint16_t value = (uint16_t)memory ^ 0xFF;
-    uint16_t res = (uint16_t)cpu->a + value + get_flag(cpu, _C);
+    uint16_t res = (uint16_t)cpu->a + value + get_flag(cpu, CARRY);
 
     uint16_t overflow = (res ^ cpu->a) & (res ^ value) & 0x80;
-    set_flag(cpu, _C, res > 0xFF);
-    set_flag(cpu, _Z, (res & 0xFF) == 0x00);
-    set_flag(cpu, _V, overflow);
-    set_flag(cpu, _N, res & 0x80);
+    set_flag(cpu, CARRY, res > 0xFF);
+    set_flag(cpu, ZERO, (res & 0xFF) == 0x00);
+    set_flag(cpu, OVERFLOW, overflow);
+    set_flag(cpu, NEGATIVE, res & 0x80);
 
     cpu->a = res & 0xFF;
     return 1;
 }
 
 uint8_t op_sec(_cpu* cpu) {
-    set_flag(cpu, _C, 1);
+    set_flag(cpu, CARRY, 1);
 	return 0;
 }
 
 uint8_t op_sed(_cpu* cpu) {
-    set_flag(cpu, _D, 1);
+    set_flag(cpu, DECIMAL, 1);
 	return 0;
 }
 
 uint8_t op_sei(_cpu* cpu) {
-    set_flag(cpu, _I, 1);
+    set_flag(cpu, IRQ_DS, 1);
 	return 0;
 }
 
@@ -605,29 +605,29 @@ uint8_t op_sty(_cpu* cpu) {
 
 uint8_t op_tax(_cpu* cpu) {
     cpu->x = cpu->a;
-    set_flag(cpu, _Z, cpu->x == 0x00);
-    set_flag(cpu, _N, cpu->x & 0x80);
+    set_flag(cpu, ZERO, cpu->x == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->x & 0x80);
 	return 0;
 }
 
 uint8_t op_tay(_cpu* cpu) {
     cpu->y = cpu->a;
-    set_flag(cpu, _Z, cpu->y == 0x00);
-    set_flag(cpu, _N, cpu->y & 0x80);
+    set_flag(cpu, ZERO, cpu->y == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->y & 0x80);
 	return 0;
 }
 
 uint8_t op_tsx(_cpu* cpu) {
     cpu->x = cpu->s;
-    set_flag(cpu, _Z, cpu->x == 0x00);
-    set_flag(cpu, _N, cpu->x & 0x80);
+    set_flag(cpu, ZERO, cpu->x == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->x & 0x80);
 	return 0;
 }
 
 uint8_t op_txa(_cpu* cpu) {
     cpu->a = cpu->x;
-    set_flag(cpu, _Z, cpu->a == 0x00);
-    set_flag(cpu, _N, cpu->a & 0x80);
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
 	return 0;
 }
 
@@ -638,13 +638,13 @@ uint8_t op_txs(_cpu* cpu) {
 
 uint8_t op_tya(_cpu* cpu) {
     cpu->a = cpu->y;
-    set_flag(cpu, _Z, cpu->a == 0x00);
-    set_flag(cpu, _N, cpu->a & 0x80);
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
 	return 0;
 }
 
 uint8_t op____(_cpu* cpu) {
-    fprintf(stderr, "ERROR: _Illegal instruction called!");
+    fprintf(stderr, "ERROR: IRQ_DSllegal instruction called!");
     return 0;
 }
 
@@ -700,14 +700,14 @@ void print_state(_cpu* cpu) {
     }
 
     uint8_t stat_str[9];
-    stat_str[0] = get_flag(cpu, _N) ? 'N' : 'n';
-    stat_str[1] = get_flag(cpu, _V) ? 'V' : 'v';
+    stat_str[0] = get_flag(cpu, NEGATIVE) ? 'N' : 'n';
+    stat_str[1] = get_flag(cpu, OVERFLOW) ? 'V' : 'v';
     stat_str[2] = '-';
-    stat_str[3] = get_flag(cpu, _B) ? 'B' : 'b';
-    stat_str[4] = get_flag(cpu, _D) ? 'D' : 'd';
-    stat_str[5] = get_flag(cpu, _I) ? 'I' : 'i';
-    stat_str[6] = get_flag(cpu, _Z) ? 'Z' : 'z';
-    stat_str[7] = get_flag(cpu, _C) ? 'C' : 'c';
+    stat_str[3] = get_flag(cpu, BREAK) ? 'B' : 'b';
+    stat_str[4] = get_flag(cpu, DECIMAL) ? 'D' : 'd';
+    stat_str[5] = get_flag(cpu, IRQ_DS) ? 'I' : 'i';
+    stat_str[6] = get_flag(cpu, ZERO) ? 'Z' : 'z';
+    stat_str[7] = get_flag(cpu, CARRY) ? 'C' : 'c';
     stat_str[8] = 0;
 
     printf("A:%02X X:%02X Y:%02X ST:%s SP:%02X PPU: %03d,%03d CY:%06llu",

@@ -49,14 +49,14 @@ typedef struct _cpu {
 } _cpu;
 
 typedef enum _cpu_flag {
-    _C = (1 << 0),  // carry
-    _Z = (1 << 1),  // zero
-    _I = (1 << 2),  // interrupt disable
-    _D = (1 << 3),  // decimal
-    _B = (1 << 4),  // break
-    _U = (1 << 5),  // unused
-    _V = (1 << 6),  // overflow
-    _N = (1 << 7),  // negative
+    CARRY       = (1 << 0),
+    ZERO        = (1 << 1),
+    IRQ_DS      = (1 << 2),
+    DECIMAL     = (1 << 3),
+    BREAK       = (1 << 4),
+    UNUSED      = (1 << 5),
+    OVERFLOW    = (1 << 6),
+    NEGATIVE    = (1 << 7),
 } _cpu_flag;
 
 typedef enum _addr_mode {
