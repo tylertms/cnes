@@ -2,7 +2,20 @@
 #include "cart.h"
 
 void ppu_clock(_ppu* ppu) {
+    if (ppu->cycle == 1 && ppu->scanline == 241) {
+        ppu->ppustatus |= VBLANK;
+        ppu->vblank_nmi = 1;
+    } else if (ppu->cycle == 1 && ppu->scanline == 261) {
+        ppu->ppustatus &= ~VBLANK;
+    }
 
+    if (++ppu->cycle > 340) {
+        ppu->cycle = 0;
+
+        if (++ppu->scanline > 261) {
+            ppu->scanline = 0;
+        }
+    }
 }
 
 uint8_t ppu_read(_ppu* ppu, uint16_t addr) {

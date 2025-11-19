@@ -30,6 +30,7 @@ typedef struct _ppu {
 
     uint16_t cycle;
     uint16_t scanline;
+    uint8_t vblank_nmi;
 
     _cart* p_cart;
 } _ppu;

@@ -1,4 +1,5 @@
 #include "nes.h"
+#include "cpu.h"
 #include <string.h>
 
 void nes_init(_nes *nes) {
@@ -19,5 +20,10 @@ void nes_clock(_nes *nes) {
     if (++nes->cpu_div == 3) {
         nes->cpu_div = 0;
         cpu_clock(&nes->cpu);
+    }
+
+    if (nes->ppu.vblank_nmi) {
+        nes->ppu.vblank_nmi = 0;
+        cpu_nmi(&nes->cpu, 0);
     }
 }

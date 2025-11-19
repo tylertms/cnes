@@ -711,5 +711,5 @@ void print_state(_cpu* cpu) {
     stat_str[8] = 0;
 
     printf("A:%02X X:%02X Y:%02X ST:%s SP:%02X PPU: %03d,%03d CY:%06llu",
-        cpu->a, cpu->x, cpu->y, stat_str, cpu->s, 0, 0, (unsigned long long)cpu->total_cycles);
+        cpu->a, cpu->x, cpu->y, stat_str, cpu->s, cpu->p_ppu->cycle, cpu->p_ppu->scanline, (unsigned long long)cpu->total_cycles);
 }
