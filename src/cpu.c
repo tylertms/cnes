@@ -16,6 +16,7 @@ void cpu_clock(_cpu* cpu) {
     uint8_t am_cycle = cpu->instr.ex_am(cpu);
 
     print_state(cpu);
+    getchar();
 
     uint8_t op_cycle = cpu->instr.ex_op(cpu);
     cpu->cycles += (am_cycle & op_cycle);
@@ -58,7 +59,7 @@ void cpu_irq(_cpu* cpu) {
 }
 
 void cpu_nmi(_cpu* cpu, uint8_t brk) {
-    if (!brk) cpu->pc++;
+    if (brk) cpu->pc++;
 
     push(cpu, cpu->pc >> 8);
     push(cpu, cpu->pc & 0xFF);
@@ -92,7 +93,7 @@ uint8_t cpu_read(_cpu* cpu, uint16_t addr) {
         }
     }
 
-    return 0x00;
+    return data;
 }
 
 void cpu_write(_cpu* cpu, uint16_t addr, uint8_t data) {
