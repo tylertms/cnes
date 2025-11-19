@@ -1,14 +1,12 @@
 #pragma once
 #include <stdint.h>
 
-typedef struct _cart _cart;
+#define NES_RW 256
+#define NES_RH 240
+#define NES_TW 341
+#define NES_TH 262
 
-typedef struct _ppureg {
-    uint8_t coarse_x;
-    uint8_t coarse_y;
-    uint8_t ntbl_select;
-    uint8_t fine_y;
-} _ppureg;
+typedef struct _cart _cart;
 
 typedef struct _ppu {
     uint8_t nametable[0x800];
@@ -31,6 +29,11 @@ typedef struct _ppu {
     uint16_t cycle;
     uint16_t scanline;
     uint8_t vblank_nmi;
+
+    uint8_t bgrnd_next_id;
+    uint8_t bgrnd_next_attr;
+    uint8_t bgrnd_next_low;
+    uint8_t bgrnd_next_high;
 
     _cart* p_cart;
 } _ppu;

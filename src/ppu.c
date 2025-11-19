@@ -2,17 +2,19 @@
 #include "cart.h"
 
 void ppu_clock(_ppu* ppu) {
-    if (ppu->cycle == 1 && ppu->scanline == 241) {
+    if (ppu->cycle == 1 && ppu->scanline == (NES_RH + 1)) {
         ppu->ppustatus |= VBLANK;
-        ppu->vblank_nmi = 1;
-    } else if (ppu->cycle == 1 && ppu->scanline == 261) {
+        if (ppu->ppuctrl & NMI_EN)
+            ppu->vblank_nmi = 1;
+
+    } else if (ppu->cycle == 1 && ppu->scanline == (NES_TH - 1)) {
         ppu->ppustatus &= ~VBLANK;
     }
 
-    if (++ppu->cycle > 340) {
+    if (++ppu->cycle >= NES_TW) {
         ppu->cycle = 0;
 
-        if (++ppu->scanline > 261) {
+        if (++ppu->scanline >= NES_TH) {
             ppu->scanline = 0;
         }
     }
@@ -115,10 +117,12 @@ uint8_t ppudata_cpu_read(_ppu* ppu) {
 
 void ppuctrl_cpu_write(_ppu* ppu, uint8_t data) {
     ppu->ppuctrl = data;
+    ppu->tmp_vram_addr = (ppu->tmp_vram_addr & 0xF3FF) | ((data & 0x03) << 10);
 }
 
 void ppumask_cpu_write(_ppu* ppu, uint8_t data) {
     ppu->ppumask = data;
+    ppu->write_toggle = 0;
 }
 
 void oamaddr_cpu_write(_ppu* ppu, uint8_t data) {
@@ -130,12 +134,20 @@ void oamdata_cpu_write(_ppu* ppu, uint8_t data) {
 }
 
 void ppuscroll_cpu_write(_ppu* ppu, uint8_t data) {
-
+    if (!ppu->write_toggle) {
+        ppu->fine_x = data & 0x07;
+        ppu->tmp_vram_addr = (ppu->tmp_vram_addr & 0xFFE0) | (data >> 3);
+        ppu->write_toggle = 1;
+    } else {
+        ppu->tmp_vram_addr = (ppu->tmp_vram_addr & 0x0C1F) |
+            ((data & 0x07) << 12) | ((data & 0xF8) << 2);
+        ppu->write_toggle = 0;
+    }
 }
 
 void ppuaddr_cpu_write(_ppu* ppu, uint8_t data) {
     if (!ppu->write_toggle) {
-        ppu->tmp_vram_addr = (ppu->tmp_vram_addr & 0x00FF) | (data << 8);
+        ppu->tmp_vram_addr = (ppu->tmp_vram_addr & 0x00FF) | ((data & 0x3F) << 8);
         ppu->write_toggle = 1;
     } else {
         ppu->tmp_vram_addr = (ppu->tmp_vram_addr & 0xFF00) | data;
