@@ -2,6 +2,17 @@
 #include <stdint.h>
 #include <stddef.h>
 
+typedef struct _cart _cart;
+typedef uint8_t (*map_fn_read)(_cart*, uint16_t);
+typedef void (*map_fn_write)(_cart*, uint16_t, uint8_t);
+
+typedef struct _mapper {
+    map_fn_read cpu_read;
+    map_fn_write cpu_write;
+    map_fn_read ppu_read;
+    map_fn_write ppu_write;
+} _mapper;
+
 typedef struct _mem {
     uint8_t* data;
     size_t size;
@@ -16,6 +27,8 @@ typedef struct _cart {
     _mem chr_rom;
     _mem chr_ram;
     _mem chr_nvram;
+
+    _mapper mapper;
 
     uint16_t prg_rom_banks;
     uint16_t chr_rom_banks;
@@ -39,5 +52,8 @@ typedef struct _cart {
 uint8_t cart_load(_cart* cart, char* file);
 uint8_t parse_ines(_cart* cart, uint8_t header[16]);
 uint8_t parse_nes2(_cart* cart, uint8_t header[16]);
-uint8_t cart_read(_cart* cart, uint16_t addr);
-void cart_write(_cart* cart, uint16_t addr, uint8_t data);
+
+uint8_t cart_cpu_read(_cart* cart, uint16_t addr);
+void cart_cpu_write(_cart* cart, uint16_t addr, uint8_t data);
+uint8_t cart_ppu_read(_cart* cart, uint16_t addr);
+void cart_cppu_write(_cart* cart, uint16_t addr, uint8_t data);

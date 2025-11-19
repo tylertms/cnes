@@ -1,4 +1,5 @@
 #include "cart.h"
+#include "mapper.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -31,6 +32,8 @@ uint8_t cart_load(_cart* cart, char* file) {
     uint8_t nes2 = (header[7] & 0x0C) == 0x08;
     if (nes2) parse_nes2(cart, header);
     else parse_ines(cart, header);
+
+    cart->mapper = mappers[cart->mapper_id];
 
     if (cart->trainer)
         fseek(rom, 0x200, SEEK_CUR);
@@ -89,10 +92,18 @@ uint8_t parse_nes2(_cart* cart, uint8_t header[16]) {
     return 0;
 }
 
-uint8_t cart_read(_cart* cart, uint16_t addr) {
-    return 0x00;
+uint8_t cart_cpu_read(_cart* cart, uint16_t addr) {
+    return cart->mapper.cpu_read(cart, addr);
 }
 
-void cart_write(_cart* cart, uint16_t addr, uint8_t data) {
+void cart_cpu_write(_cart* cart, uint16_t addr, uint8_t data) {
+    cart->mapper.cpu_write(cart, addr, data);
+}
 
+uint8_t cart_ppu_read(_cart* cart, uint16_t addr) {
+    return cart->mapper.ppu_read(cart, addr);
+}
+
+void cart_ppu_write(_cart* cart, uint16_t addr, uint8_t data) {
+    cart->mapper.ppu_write(cart, addr, data);
 }

@@ -89,7 +89,7 @@ uint8_t cpu_read(_cpu* cpu, uint16_t addr) {
         // TODO: APU
     } else if (0x4020 <= addr && addr <= 0xFFFF) {
         if (cpu->p_cart) {
-            data = cart_read(cpu->p_cart, addr);
+            data = cart_cpu_read(cpu->p_cart, addr);
         }
     }
 
@@ -108,7 +108,7 @@ void cpu_write(_cpu* cpu, uint16_t addr, uint8_t data) {
         // TODO: APU
     } else if (0x4020 <= addr && addr <= 0xFFFF) {
         if (cpu->p_cart) {
-            cart_write(cpu->p_cart, addr, data);
+            cart_cpu_write(cpu->p_cart, addr, data);
         }
     }
 }
