@@ -56,4 +56,4 @@ uint8_t parse_nes2(_cart* cart, uint8_t header[16]);
 uint8_t cart_cpu_read(_cart* cart, uint16_t addr);
 void cart_cpu_write(_cart* cart, uint16_t addr, uint8_t data);
 uint8_t cart_ppu_read(_cart* cart, uint16_t addr);
-void cart_cppu_write(_cart* cart, uint16_t addr, uint8_t data);
+void cart_ppu_write(_cart* cart, uint16_t addr, uint8_t data);
