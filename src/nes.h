@@ -1,9 +1,9 @@
 #pragma once
-#include "cpu.h"
-#include "ppu.h"
 #include "apu.h"
 #include "cart.h"
+#include "cpu.h"
 #include "input.h"
+#include "ppu.h"
 #include <stdint.h>
 #include <stddef.h>
 
