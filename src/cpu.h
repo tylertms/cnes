@@ -77,6 +77,7 @@ uint8_t AMF(acc), AMF(imp), AMF(imm), AMF(zpg), AMF(zpx), AMF(zpy), AMF(abs), AM
         AMF(aby), AMF(idr), AMF(idx), AMF(idy), AMF(rel), AMF(___);
 
 void cpu_clock(_cpu* cpu);
+
 void cpu_reset(_cpu* cpu);
 void cpu_irq(_cpu* cpu);
 void cpu_nmi(_cpu* cpu, uint8_t brk);

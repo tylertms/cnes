@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void cpu_clock(_cpu* cpu) {
+inline void cpu_clock(_cpu* cpu) {
     cpu->total_cycles++;
     if (--cpu->cycles) return;
 
@@ -15,8 +15,8 @@ void cpu_clock(_cpu* cpu) {
     cpu->cycles = cpu->instr.cycles;
     uint8_t am_cycle = cpu->instr.ex_am(cpu);
 
-    print_state(cpu);
-    getchar();
+    //print_state(cpu);
+    //printf("\n");
 
     uint8_t op_cycle = cpu->instr.ex_op(cpu);
     cpu->cycles += (am_cycle & op_cycle);
