@@ -1,12 +1,14 @@
 #pragma once
 #include <stdint.h>
 
-#define NES_RW 256
-#define NES_RH 240
-#define NES_TW 341
-#define NES_TH 262
+#define NES_W           256
+#define NES_H           240
+#define NES_ALL_WMAX    340
+#define NES_ALL_HMAX    261
+#define NES_PIXELS (NES_W * NES_H)
 
 typedef struct _cart _cart;
+typedef struct _gui _gui;
 
 typedef struct _ppu {
     uint8_t nametable[0x800];
@@ -21,7 +23,7 @@ typedef struct _ppu {
     uint8_t oamdma;
 
     uint16_t vram_addr;
-    uint16_t tmp_vram_addr;
+    uint16_t tram_addr;
     uint8_t data_buffer;
     uint8_t fine_x;
     uint8_t write_toggle;
@@ -35,7 +37,15 @@ typedef struct _ppu {
     uint8_t bgrnd_next_low;
     uint8_t bgrnd_next_high;
 
+    uint16_t bgrnd_pattern_low;
+    uint16_t bgrnd_pattern_high;
+    uint16_t bgrnd_attr_low;
+    uint16_t bgrnd_attr_high;
+
+    uint8_t even_frame;
+
     _cart* p_cart;
+    _gui* p_gui;
 } _ppu;
 
 typedef enum _ppuctrl_flag {
@@ -58,6 +68,7 @@ typedef enum _ppumask_flag {
     CLR_EM_R        = (1 << 5),
     CLR_EM_G        = (1 << 6),
     CLR_EM_B        = (1 << 7),
+    EMPHASIS        = 0xE0,
 } _ppumask_flag;
 
 typedef enum _ppustatus_flag {
@@ -78,7 +89,15 @@ typedef enum _ppureg_addr {
     OAMDMA      = 0x4014,
 } _ppureg_addr;
 
-void ppu_clock(_ppu* ppu);
+typedef enum _intreg_mask {
+    COARSE_X    = 0x001F,
+    COARSE_Y    = 0x03E0,
+    NTBL_X      = 0x0400,
+    NTBL_Y      = 0x0800,
+    FINE_Y      = 0x7000,
+} _intreg_mask;
+
+uint8_t ppu_clock(_ppu* ppu);
 
 uint8_t ppu_read(_ppu* ppu, uint16_t addr);
 void ppu_write(_ppu* ppu, uint16_t addr, uint8_t data);
