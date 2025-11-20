@@ -243,10 +243,6 @@ uint8_t am_rel(_cpu* cpu) {
     return 0;
 }
 
-uint8_t am____(_cpu* cpu) {
-    return 0;
-}
-
 /* Operations */
 
 uint8_t op_adc(_cpu* cpu) {
@@ -263,12 +259,28 @@ uint8_t op_adc(_cpu* cpu) {
 	return 1;
 }
 
+uint8_t op_ahx(_cpu* cpu) {
+    return 0;
+}
+
+uint8_t op_alr(_cpu* cpu) {
+    return 0;
+}
+
+uint8_t op_anc(_cpu* cpu) {
+    return 0;
+}
+
 uint8_t op_and(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     cpu->a &= memory;
     set_flag(cpu, ZERO, cpu->a == 0x00);
     set_flag(cpu, NEGATIVE, cpu->a & 0x80);
 	return 1;
+}
+
+uint8_t op_arr(_cpu* cpu) {
+    return 0;
 }
 
 uint8_t op_asl(_cpu* cpu) {
@@ -279,6 +291,10 @@ uint8_t op_asl(_cpu* cpu) {
     set_flag(cpu, NEGATIVE, res & 0x80);
     cpu_write_back(cpu, res);
 	return 0;
+}
+
+uint8_t op_axs(_cpu* cpu) {
+    return 0;
 }
 
 uint8_t op_bcc(_cpu* cpu) {
@@ -388,6 +404,10 @@ uint8_t op_cpy(_cpu* cpu) {
 	return 0;
 }
 
+uint8_t op_dcp(_cpu* cpu) {
+    return 0;
+}
+
 uint8_t op_dec(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu) - 1;
     cpu_write(cpu, cpu->op_addr, memory);
@@ -418,6 +438,10 @@ uint8_t op_eor(_cpu* cpu) {
 	return 1;
 }
 
+uint8_t op_hlt(_cpu* cpu) {
+    return 0;
+}
+
 uint8_t op_inc(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu) + 1;
     cpu_write(cpu, cpu->op_addr, memory);
@@ -440,6 +464,10 @@ uint8_t op_iny(_cpu* cpu) {
 	return 0;
 }
 
+uint8_t op_isc(_cpu* cpu) {
+    return 0;
+}
+
 uint8_t op_jmp(_cpu* cpu) {
     cpu->pc = cpu->op_addr;
 	return 0;
@@ -451,6 +479,14 @@ uint8_t op_jsr(_cpu* cpu) {
     push(cpu, cpu->pc & 0xFF);
     cpu->pc = cpu->op_addr;
 	return 0;
+}
+
+uint8_t op_las(_cpu* cpu) {
+    return 1;
+}
+
+uint8_t op_lax(_cpu* cpu) {
+    return 1;
 }
 
 uint8_t op_lda(_cpu* cpu) {
@@ -487,6 +523,10 @@ uint8_t op_lsr(_cpu* cpu) {
 
     cpu_write_back(cpu, res);
 	return 0;
+}
+
+uint8_t op_lxa(_cpu* cpu) {
+    return 0;
 }
 
 uint8_t op_nop(_cpu* cpu) {
@@ -535,6 +575,10 @@ uint8_t op_rol(_cpu* cpu) {
 	return 0;
 }
 
+uint8_t op_rla(_cpu* cpu) {
+    return 0;
+}
+
 uint8_t op_ror(_cpu* cpu) {
     uint8_t memory = cpu_fetch(cpu);
     uint8_t res = (memory >> 1) | (get_flag(cpu, CARRY) << 7);
@@ -545,6 +589,10 @@ uint8_t op_ror(_cpu* cpu) {
 
     cpu_write_back(cpu, res);
 	return 0;
+}
+
+uint8_t op_rra(_cpu* cpu) {
+    return 0;
 }
 
 uint8_t op_rti(_cpu* cpu) {
@@ -559,6 +607,10 @@ uint8_t op_rts(_cpu* cpu) {
     cpu->pc |= (uint16_t)pull(cpu) << 8;
     cpu->pc++;
 	return 0;
+}
+
+uint8_t op_sax(_cpu* cpu) {
+    return 0;
 }
 
 uint8_t op_sbc(_cpu* cpu) {
@@ -591,6 +643,22 @@ uint8_t op_sei(_cpu* cpu) {
 	return 0;
 }
 
+uint8_t op_shx(_cpu* cpu) {
+    return 0;
+}
+
+uint8_t op_shy(_cpu* cpu) {
+    return 0;
+}
+
+uint8_t op_slo(_cpu* cpu) {
+    return 0;
+}
+
+uint8_t op_sre(_cpu* cpu) {
+    return 0;
+}
+
 uint8_t op_sta(_cpu* cpu) {
     cpu_write(cpu, cpu->op_addr, cpu->a);
 	return 0;
@@ -604,6 +672,10 @@ uint8_t op_stx(_cpu* cpu) {
 uint8_t op_sty(_cpu* cpu) {
     cpu_write(cpu, cpu->op_addr, cpu->y);
 	return 0;
+}
+
+uint8_t op_tas(_cpu* cpu) {
+    return 0;
 }
 
 uint8_t op_tax(_cpu* cpu) {
@@ -646,8 +718,7 @@ uint8_t op_tya(_cpu* cpu) {
 	return 0;
 }
 
-uint8_t op____(_cpu* cpu) {
-    fprintf(stderr, "ERROR: IRQ_DSllegal instruction called!");
+uint8_t op_xaa(_cpu* cpu) {
     return 0;
 }
 
