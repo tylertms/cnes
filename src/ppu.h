@@ -7,6 +7,7 @@
 #define NES_ALL_HMAX    261
 #define NES_PIXELS (NES_W * NES_H)
 
+typedef struct _cpu _cpu;
 typedef struct _cart _cart;
 typedef struct _gui _gui;
 
@@ -30,7 +31,6 @@ typedef struct _ppu {
 
     uint16_t cycle;
     uint16_t scanline;
-    uint8_t vblank_nmi;
 
     uint8_t bgrnd_next_id;
     uint8_t bgrnd_next_attr;
@@ -44,6 +44,7 @@ typedef struct _ppu {
 
     uint8_t even_frame;
 
+    _cpu* p_cpu;
     _cart* p_cart;
     _gui* p_gui;
 } _ppu;

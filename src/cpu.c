@@ -1,3 +1,4 @@
+// cpu.c
 #include "cpu.h"
 #include "cart.h"
 #include "input.h"
@@ -10,6 +11,21 @@
 inline void cpu_clock(_cpu* cpu) {
     cpu->total_cycles++;
     if (--cpu->cycles) return;
+
+    if (cpu->nmi_pending) {
+        cpu->nmi_pending = 0;
+        cpu_nmi(cpu, 0);
+        return;
+    }
+
+    if (cpu->irq_pending && !get_flag(cpu, IRQ_DS)) {
+        if (cpu->irq_delay) {
+            cpu->irq_delay = 0;
+        } else {
+            cpu_irq(cpu);
+            return;
+        }
+    }
 
     uint8_t opcode = cpu_read(cpu, cpu->pc++);
     cpu->instr = instructions[opcode];
@@ -69,6 +85,7 @@ void cpu_nmi(_cpu* cpu, uint8_t brk) {
     set_flag(cpu, UNUSED, 1);
     set_flag(cpu, IRQ_DS, 1);
     push(cpu, cpu->p);
+    set_flag(cpu, BREAK, 0);
 
     uint16_t low = cpu_read(cpu, brk ? IRQ_VECTOR : NMI_VECTOR);
     uint16_t high = cpu_read(cpu, brk ? IRQ_VECTOR + 1 : NMI_VECTOR + 1);
@@ -410,8 +427,10 @@ uint8_t op_cld(_cpu* cpu) {
 }
 
 uint8_t op_cli(_cpu* cpu) {
+    uint8_t old_irq_ds = get_flag(cpu, IRQ_DS);
     set_flag(cpu, IRQ_DS, 0);
-	return 0;
+    cpu->irq_delay = old_irq_ds && cpu->irq_pending;
+    return 0;
 }
 
 uint8_t op_clv(_cpu* cpu) {

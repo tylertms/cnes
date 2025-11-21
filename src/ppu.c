@@ -1,4 +1,5 @@
 #include "ppu.h"
+#include "cpu.h"
 #include "cart.h"
 #include "gui.h"
 #include "palette.h"
@@ -157,7 +158,7 @@ inline uint8_t ppu_clock(_ppu* ppu) {
         frame_complete = 0x01;
 
         if (ppu->ppuctrl & NMI_EN) {
-            ppu->vblank_nmi = 1;
+            ppu->p_cpu->nmi_pending = 1;
         }
     }
 

@@ -42,6 +42,10 @@ typedef struct _cpu {
     size_t total_cycles;    // total cycle counter
     uint8_t ram[0x800];     // cpu memory
 
+    uint8_t irq_delay;
+    uint8_t irq_pending;
+    uint8_t nmi_pending;
+
     _ppu* p_ppu;            // ref for ppu regs cpu-side
     _cart* p_cart;          // ref for cart mapper cpu-side
     _input* p_input;        // ref for controller input

@@ -10,6 +10,7 @@ void nes_init(_nes* nes, _gui* gui) {
     nes->cpu.p_input = &nes->input;
     nes->ppu.p_cart = &nes->cart;
     nes->ppu.p_gui = gui;
+    nes->ppu.p_cpu = &nes->cpu;
 }
 
 void nes_reset(_nes* nes) {
@@ -25,10 +26,5 @@ inline void nes_clock(_nes* nes) {
             ppu_clock(&nes->ppu) ;
 
         cpu_clock(&nes->cpu);
-
-        if (nes->ppu.vblank_nmi) {
-            nes->ppu.vblank_nmi = 0;
-            cpu_nmi(&nes->cpu, 0);
-        }
     }
 }
