@@ -110,8 +110,8 @@ static _instr instructions[256] = {
     IN(rti,imp,6,0), IN(eor,idx,6,1), IN(hlt,imp,0,0), IN(sre,idx,8,1), IN(nop,zpg,3,1), IN(eor,zpg,3,1), IN(lsr,zpg,5,1), IN(sre,zpg,5,1),     // 0x40 - 0x47
     IN(pha,imp,3,0), IN(eor,imm,2,1), IN(lsr,acc,2,0), IN(alr,imm,2,1), IN(jmp,abs,3,2), IN(eor,abs,4,2), IN(lsr,abs,6,2), IN(sre,abs,6,2),     // 0x48 - 0x4F
     IN(bvc,rel,2,1), IN(eor,idy,5,1), IN(hlt,imp,0,0), IN(sre,idy,8,1), IN(nop,zpx,4,1), IN(eor,zpx,4,1), IN(lsr,zpx,6,1), IN(sre,zpx,6,1),     // 0x50 - 0x57
-    IN(cli,imp,2,0), IN(eor,aby,4,2), IN(hlt,imp,0,0), IN(sre,aby,7,2), IN(nop,abx,4,2), IN(eor,abx,4,2), IN(lsr,abx,7,2), IN(sre,abx,7,2),     // 0x58 - 0x5F
-    IN(rts,imp,6,0), IN(adc,idx,6,1), IN(hlt,imm,0,1), IN(rra,idx,8,1), IN(nop,zpg,3,1), IN(adc,zpg,3,1), IN(ror,zpg,5,1), IN(rra,zpg,5,1),     // 0x60 - 0x67
+    IN(cli,imp,2,0), IN(eor,aby,4,2), IN(nop,imp,0,0), IN(sre,aby,7,2), IN(nop,abx,4,2), IN(eor,abx,4,2), IN(lsr,abx,7,2), IN(sre,abx,7,2),     // 0x58 - 0x5F
+    IN(rts,imp,6,0), IN(adc,idx,6,1), IN(hlt,imp,0,1), IN(rra,idx,8,1), IN(nop,zpg,3,1), IN(adc,zpg,3,1), IN(ror,zpg,5,1), IN(rra,zpg,5,1),     // 0x60 - 0x67
     IN(pla,imp,4,0), IN(adc,imm,2,1), IN(ror,acc,2,0), IN(arr,imm,2,1), IN(jmp,idr,5,2), IN(adc,abs,4,2), IN(ror,abs,6,2), IN(rra,abs,6,2),     // 0x68 - 0x6F
     IN(bvs,rel,2,1), IN(adc,idy,5,1), IN(hlt,imp,0,0), IN(rra,idy,8,1), IN(nop,zpx,4,1), IN(adc,zpx,4,1), IN(ror,zpx,6,1), IN(rra,zpx,6,1),     // 0x70 - 0x77
     IN(sei,imp,2,0), IN(adc,aby,4,2), IN(nop,imp,2,0), IN(rra,aby,7,2), IN(nop,abx,4,2), IN(adc,abx,4,2), IN(ror,abx,7,2), IN(rra,abx,7,2),     // 0x78 - 0x7F

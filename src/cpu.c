@@ -42,7 +42,7 @@ void cpu_reset(_cpu* cpu) {
 }
 
 void cpu_irq(_cpu* cpu) {
-    if (!get_flag(cpu, IRQ_DS))
+    if (get_flag(cpu, IRQ_DS))
         return;
 
     push(cpu, cpu->pc >> 8);
@@ -260,14 +260,31 @@ uint8_t op_adc(_cpu* cpu) {
 }
 
 uint8_t op_ahx(_cpu* cpu) {
+    uint8_t hi = (uint8_t)((cpu->op_addr >> 8) + 1);
+    uint8_t val = cpu->a & cpu->x & hi;
+    cpu_write(cpu, cpu->op_addr, val);
     return 0;
 }
 
 uint8_t op_alr(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    cpu->a &= memory;
+
+    set_flag(cpu, CARRY, cpu->a & 0x01);
+    cpu->a >>= 1;
+
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
     return 0;
 }
 
 uint8_t op_anc(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    cpu->a &= memory;
+
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
+    set_flag(cpu, CARRY, cpu->a & 0x80);
     return 0;
 }
 
@@ -280,6 +297,19 @@ uint8_t op_and(_cpu* cpu) {
 }
 
 uint8_t op_arr(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    cpu->a &= memory;
+
+    uint8_t old_c = get_flag(cpu, CARRY);
+    cpu->a = (cpu->a >> 1) | (old_c << 7);
+
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
+
+    uint8_t bit6 = (cpu->a >> 6) & 1;
+    uint8_t bit5 = (cpu->a >> 5) & 1;
+    set_flag(cpu, CARRY, bit6);
+    set_flag(cpu, OVERFLOW, bit6 ^ bit5);
     return 0;
 }
 
@@ -294,6 +324,15 @@ uint8_t op_asl(_cpu* cpu) {
 }
 
 uint8_t op_axs(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    uint8_t ax = cpu->a & cpu->x;
+    uint8_t res = ax - memory;
+
+    set_flag(cpu, CARRY, ax >= memory);
+    set_flag(cpu, ZERO, res == 0x00);
+    set_flag(cpu, NEGATIVE, res & 0x80);
+
+    cpu->x = res;
     return 0;
 }
 
@@ -405,6 +444,14 @@ uint8_t op_cpy(_cpu* cpu) {
 }
 
 uint8_t op_dcp(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    memory--;
+
+    cpu_write(cpu, cpu->op_addr, memory);
+
+    set_flag(cpu, CARRY, cpu->a >= memory);
+    set_flag(cpu, ZERO, cpu->a == memory);
+    set_flag(cpu, NEGATIVE, (cpu->a - memory) & 0x80);
     return 0;
 }
 
@@ -439,6 +486,7 @@ uint8_t op_eor(_cpu* cpu) {
 }
 
 uint8_t op_hlt(_cpu* cpu) {
+    cpu->halt = 1;
     return 0;
 }
 
@@ -465,6 +513,22 @@ uint8_t op_iny(_cpu* cpu) {
 }
 
 uint8_t op_isc(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    memory++;
+
+    cpu_write(cpu, cpu->op_addr, memory);
+
+    uint16_t inv = (uint16_t)memory ^ 0xFF;
+    uint16_t res = (uint16_t)cpu->a + inv + get_flag(cpu, CARRY);
+
+    uint16_t overflow = (res ^ cpu->a) & (res ^ inv) & 0x80;
+
+    set_flag(cpu, CARRY, res > 0xFF);
+    set_flag(cpu, ZERO, (res & 0xFF) == 0x00);
+    set_flag(cpu, OVERFLOW, overflow);
+    set_flag(cpu, NEGATIVE, res & 0x80);
+
+    cpu->a = (uint8_t)res;
     return 0;
 }
 
@@ -482,10 +546,24 @@ uint8_t op_jsr(_cpu* cpu) {
 }
 
 uint8_t op_las(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    uint8_t res = memory & cpu->s;
+
+    cpu->a = res;
+    cpu->x = res;
+    cpu->s = res;
+
+    set_flag(cpu, ZERO, res == 0x00);
+    set_flag(cpu, NEGATIVE, res & 0x80);
     return 1;
 }
 
 uint8_t op_lax(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    cpu->a = memory;
+    cpu->x = memory;
+    set_flag(cpu, ZERO, memory == 0x00);
+    set_flag(cpu, NEGATIVE, memory & 0x80);
     return 1;
 }
 
@@ -526,6 +604,12 @@ uint8_t op_lsr(_cpu* cpu) {
 }
 
 uint8_t op_lxa(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    cpu->a &= memory;
+    cpu->x = cpu->a;
+
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
     return 0;
 }
 
@@ -576,6 +660,17 @@ uint8_t op_rol(_cpu* cpu) {
 }
 
 uint8_t op_rla(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    uint8_t old_c = get_flag(cpu, CARRY);
+
+    set_flag(cpu, CARRY, memory & 0x80);
+    memory = (memory << 1) | old_c;
+
+    cpu_write(cpu, cpu->op_addr, memory);
+
+    cpu->a &= memory;
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
     return 0;
 }
 
@@ -592,6 +687,24 @@ uint8_t op_ror(_cpu* cpu) {
 }
 
 uint8_t op_rra(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    uint8_t old_c = get_flag(cpu, CARRY);
+
+    uint8_t new_c = memory & 0x01;
+    memory = (memory >> 1) | (old_c << 7);
+    set_flag(cpu, CARRY, new_c);
+
+    cpu_write(cpu, cpu->op_addr, memory);
+
+    uint16_t res = (uint16_t)cpu->a + (uint16_t)memory + get_flag(cpu, CARRY);
+    uint16_t overflow = (res ^ cpu->a) & (res ^ memory) & 0x80;
+
+    set_flag(cpu, CARRY, res > 0xFF);
+    set_flag(cpu, ZERO, (res & 0xFF) == 0x00);
+    set_flag(cpu, OVERFLOW, overflow);
+    set_flag(cpu, NEGATIVE, res & 0x80);
+
+    cpu->a = (uint8_t)res;
     return 0;
 }
 
@@ -610,6 +723,8 @@ uint8_t op_rts(_cpu* cpu) {
 }
 
 uint8_t op_sax(_cpu* cpu) {
+    uint8_t data = cpu->a & cpu->x;
+    cpu_write(cpu, cpu->op_addr, data);
     return 0;
 }
 
@@ -644,18 +759,44 @@ uint8_t op_sei(_cpu* cpu) {
 }
 
 uint8_t op_shx(_cpu* cpu) {
+    uint8_t hi = (uint8_t)((cpu->op_addr >> 8) + 1);
+    uint8_t val = cpu->x & hi;
+    cpu_write(cpu, cpu->op_addr, val);
     return 0;
 }
 
 uint8_t op_shy(_cpu* cpu) {
+    uint8_t hi = (uint8_t)((cpu->op_addr >> 8) + 1);
+    uint8_t val = cpu->y & hi;
+    cpu_write(cpu, cpu->op_addr, val);
     return 0;
 }
 
 uint8_t op_slo(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+
+    uint16_t res = (uint16_t)memory << 1;
+    set_flag(cpu, CARRY, res > 0xFF);
+    memory = (uint8_t)res;
+
+    cpu_write(cpu, cpu->op_addr, memory);
+
+    cpu->a |= memory;
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
     return 0;
 }
 
 uint8_t op_sre(_cpu* cpu) {
+    uint8_t memory = cpu_fetch(cpu);
+    set_flag(cpu, CARRY, memory & 0x01);
+    memory >>= 1;
+
+    cpu_write(cpu, cpu->op_addr, memory);
+    cpu->a ^= memory;
+
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
     return 0;
 }
 
@@ -675,6 +816,12 @@ uint8_t op_sty(_cpu* cpu) {
 }
 
 uint8_t op_tas(_cpu* cpu) {
+    uint8_t tmp = cpu->a & cpu->x;
+    cpu->s = tmp;
+
+    uint8_t hi = (uint8_t)((cpu->op_addr >> 8) + 1);
+    uint8_t val = tmp & hi;
+    cpu_write(cpu, cpu->op_addr, val);
     return 0;
 }
 
@@ -719,8 +866,13 @@ uint8_t op_tya(_cpu* cpu) {
 }
 
 uint8_t op_xaa(_cpu* cpu) {
+    uint8_t value = cpu_fetch(cpu);
+    cpu->a = cpu->x & value;
+    set_flag(cpu, ZERO, cpu->a == 0x00);
+    set_flag(cpu, NEGATIVE, cpu->a & 0x80);
     return 0;
 }
+
 
 
 uint8_t* up_mnem(uint8_t* str) {
