@@ -28,4 +28,12 @@ target_compile_options(cnes PRIVATE
     "$<$<CONFIG:Release>:-march=native>"
 )
 
+target_compile_options(cnes PRIVATE
+    $<$<CONFIG:Debug>:-fsanitize=address>
+)
+
+target_link_options(cnes PRIVATE
+    $<$<CONFIG:Debug>:-fsanitize=address>
+)
+
 target_link_libraries(cnes PRIVATE SDL3::SDL3)
