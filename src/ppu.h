@@ -18,10 +18,17 @@ typedef struct _sprite {
     uint8_t pos_x;
 } _sprite;
 
+typedef struct _dma {
+    uint8_t is_transfer;
+    uint8_t dummy_cycle;
+    uint8_t page;
+    uint8_t addr;
+    uint8_t data;
+} _dma;
+
 typedef struct _ppu {
-    uint8_t nametable[0x800];
+    uint8_t nametable[0x0800];
     uint8_t palette_idx[0x20];
-    _sprite oam[0x40];
 
     uint8_t ppuctrl;
     uint8_t ppumask;
@@ -49,6 +56,16 @@ typedef struct _ppu {
     uint16_t bgrnd_pattern_high;
     uint16_t bgrnd_attr_low;
     uint16_t bgrnd_attr_high;
+
+    _dma dma;
+    _sprite oam[0x40];
+    _sprite sprites[0x08];
+    uint8_t sprite_count;
+    uint8_t sprite_pattern_low[0x08];
+    uint8_t sprite_pattern_high[0x08];
+
+    uint8_t sprite_0_hit_possible;
+    uint8_t sprite_0_rendered;
 
     uint8_t even_frame;
 
@@ -106,6 +123,14 @@ typedef enum _intreg_mask {
     FINE_Y      = 0x7000,
 } _intreg_mask;
 
+typedef enum _sprite_attr {
+    SPRITE_PALETTE  = 0x03,
+    SPRITE_UNUSED   = 0x1C,
+    PRIORITY        = 0x20,
+    FLIP_HORIZONTAL = 0x40,
+    FLIP_VERTICAL   = 0x80,
+} _sprite_attr;
+
 uint8_t ppu_clock(_ppu* ppu);
 
 uint8_t ppu_read(_ppu* ppu, uint16_t addr);
@@ -135,3 +160,10 @@ void update_shifters(_ppu* ppu);
 uint32_t get_color(_ppu* ppu, uint8_t palette, uint8_t emphasis, uint8_t pixel);
 
 uint8_t physical_nametable(_cart* cart, uint8_t logical);
+
+static inline uint8_t reverse_byte(uint8_t b) {
+   b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
+   b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
+   b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
+   return b;
+}
