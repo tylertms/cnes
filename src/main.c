@@ -4,9 +4,7 @@
 #include <stdio.h>
 
 int main(int argc, char** argv) {
-    const double target_fps = 60.0988;
-    const double target_seconds = 1.0 / target_fps;
-    const uint64_t target_frame_ns = (uint64_t)(target_seconds * 1e9);
+    const double NES_FRAME_TIME = 655171.0 / 39375000.0;
 
     if (argc <= 1) {
         printf("Usage: %s <file.nes>\n", argv[0]);
@@ -33,17 +31,27 @@ int main(int argc, char** argv) {
 
     SDL_Event event;
 
-    while (!nes.cpu.halt) {
-        uint64_t frame_start = SDL_GetTicksNS();
+    uint64_t perf_freq = SDL_GetPerformanceFrequency();
+    uint64_t last_counter = SDL_GetPerformanceCounter();
+    double accumulator  = 0.0;
 
-        nes.input.controller[0] = 0x00;
-        nes.input.controller[1] = 0x00;
+    while (!nes.cpu.halt) {
+        uint64_t now = SDL_GetPerformanceCounter();
+        double dt = (double)(now - last_counter) / (double)perf_freq;
+        last_counter = now;
+        if (dt > 0.25) dt = 0.25;
+        accumulator += dt;
 
         while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.repeat)
+                continue;
+
             switch (event.type) {
             case SDL_EVENT_QUIT:
             case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
-                nes.cpu.halt = 1; break;
+                nes.cpu.halt = 1;
+                break;
+
             case SDL_EVENT_KEY_DOWN:
                 switch (event.key.scancode) {
                     case SDL_SCANCODE_X:     nes.input.controller[0] |= 0x80; break;
@@ -56,20 +64,37 @@ int main(int argc, char** argv) {
                     case SDL_SCANCODE_RIGHT: nes.input.controller[0] |= 0x01; break;
                     default: break;
                 }
+                break;
 
-            default: break;
+            case SDL_EVENT_KEY_UP:
+                switch (event.key.scancode) {
+                    case SDL_SCANCODE_X:     nes.input.controller[0] &= ~0x80; break;
+                    case SDL_SCANCODE_Z:     nes.input.controller[0] &= ~0x40; break;
+                    case SDL_SCANCODE_A:     nes.input.controller[0] &= ~0x20; break;
+                    case SDL_SCANCODE_S:     nes.input.controller[0] &= ~0x10; break;
+                    case SDL_SCANCODE_UP:    nes.input.controller[0] &= ~0x08; break;
+                    case SDL_SCANCODE_DOWN:  nes.input.controller[0] &= ~0x04; break;
+                    case SDL_SCANCODE_LEFT:  nes.input.controller[0] &= ~0x02; break;
+                    case SDL_SCANCODE_RIGHT: nes.input.controller[0] &= ~0x01; break;
+                    default: break;
+                }
+                break;
+
+            default:
+                break;
             }
         }
 
-        nes_clock(&nes);
-        draw_gui(&gui);
-
-        uint64_t frame_end = SDL_GetTicksNS();
-        uint64_t elapsed_ns = frame_end - frame_start;
-        if (elapsed_ns < target_frame_ns) {
-            SDL_DelayNS(target_frame_ns - elapsed_ns);
+        int did_step = 0;
+        while (accumulator >= NES_FRAME_TIME) {
+            nes_clock(&nes);
+            accumulator -= NES_FRAME_TIME;
+            did_step = 1;
         }
+
+        draw_gui(&gui);
     }
 
+    deinit_gui(&gui);
     return 0;
 }
