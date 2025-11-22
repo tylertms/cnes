@@ -1,4 +1,3 @@
-#include "cart.h"
 #include "nes.h"
 #include "gui.h"
 #include <stdio.h>
@@ -13,24 +12,17 @@ int main(int argc, char** argv) {
 
     _gui gui;
     if (init_gui(&gui)) {
-        fprintf(stderr, "ERROR: Failed to initialize GUI!\n");
         deinit_gui(&gui);
         return 1;
     }
 
     _nes nes;
-    nes_init(&nes, &gui);
-
-    uint8_t res = cart_load(&nes.cart, argv[1]);
-    if (res) {
+    if (nes_init(&nes, argv[1], &gui)) {
         deinit_gui(&gui);
-        return res;
+        return 1;
     }
 
-    nes_reset(&nes);
-
     SDL_Event event;
-
     uint64_t perf_freq = SDL_GetPerformanceFrequency();
     uint64_t last_counter = SDL_GetPerformanceCounter();
     double accumulator  = 0.0;
@@ -54,7 +46,16 @@ int main(int argc, char** argv) {
 
             case SDL_EVENT_KEY_DOWN:
                 switch (event.key.scancode) {
-                    case SDL_SCANCODE_BACKSPACE:             nes_reset(&nes); break;
+                    case SDL_SCANCODE_BACKSPACE:
+                        cpu_reset(&nes.cpu);
+                        break;
+                    case SDL_SCANCODE_DELETE:
+                        if (nes_init(&nes, argv[1], &gui)) {
+                            deinit_gui(&gui);
+                            return 1;
+                        };
+                        break;
+
                     case SDL_SCANCODE_X:     nes.input.controller[0] |= 0x80; break;
                     case SDL_SCANCODE_Z:     nes.input.controller[0] |= 0x40; break;
                     case SDL_SCANCODE_A:     nes.input.controller[0] |= 0x20; break;

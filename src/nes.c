@@ -1,9 +1,10 @@
 #include "nes.h"
 #include "cpu.h"
+#include "gui.h"
 #include "ppu.h"
 #include <string.h>
 
-void nes_init(_nes* nes, _gui* gui) {
+uint8_t nes_init(_nes* nes, char* file, _gui* gui) {
     memset(nes, 0, sizeof(_nes));
 
     nes->cpu.p_ppu = &nes->ppu;
@@ -12,6 +13,15 @@ void nes_init(_nes* nes, _gui* gui) {
     nes->ppu.p_cart = &nes->cart;
     nes->ppu.p_gui = gui;
     nes->ppu.p_cpu = &nes->cpu;
+
+    uint8_t res = cart_load(&nes->cart, file);
+    if (res) {
+        deinit_gui(gui);
+        return 1;
+    }
+
+    nes_reset(nes);
+    return 0;
 }
 
 void nes_reset(_nes* nes) {

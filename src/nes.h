@@ -17,6 +17,6 @@ typedef struct _nes {
     size_t master_clock;
 } _nes;
 
-void nes_init(_nes* nes, _gui* gui);
+uint8_t nes_init(_nes* nes, char* file, _gui* gui);
 void nes_reset(_nes* nes);
 void nes_clock(_nes* nes);
