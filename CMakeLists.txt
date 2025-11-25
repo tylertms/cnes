@@ -24,7 +24,8 @@ add_executable(cnes
 set_property(TARGET cnes PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 set(CMAKE_OPTIMIZE_DEPENDENCIES TRUE)
 target_compile_options(cnes PRIVATE
-    "$<$<CONFIG:Release>:-Ofast>"
+    "$<$<CONFIG:Release>:-O3>"
+    "$<$<CONFIG:Release>:-ffast-math>"
     "$<$<CONFIG:Release>:-march=native>"
 )
 
