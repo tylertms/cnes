@@ -25,7 +25,10 @@ int gui_init(_gui* gui, char* file) {
         return 1;
     }
 
-    SDL_SetRenderVSync(gui->renderer, 1);
+    if (!SDL_SetRenderVSync(gui->renderer, SDL_RENDERER_VSYNC_ADAPTIVE)) {
+        SDL_SetRenderVSync(gui->renderer, 1);
+    }
+
 
     gui->texture = SDL_CreateTexture(
         gui->renderer,
