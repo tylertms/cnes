@@ -134,11 +134,11 @@ uint8_t ppu_clock(_ppu* ppu) {
                         }
                     } else {
                         if (ppu->sprites[i].attr & FLIP_VERTICAL) {
-                            sprite_pattern_addr_low = ((ppu->ppuctrl & SPRITE_SEL) << 12) |
+                            sprite_pattern_addr_low = ((ppu->ppuctrl & SPRITE_SEL) << 9) |
                                 (ppu->sprites[i].id << 4) |
                                 (7 - (ppu->scanline - ppu->sprites[i].pos_y));
                         } else {
-                            sprite_pattern_addr_low = ((ppu->ppuctrl & SPRITE_SEL) << 12) |
+                            sprite_pattern_addr_low = ((ppu->ppuctrl & SPRITE_SEL) << 9) |
                                 (ppu->sprites[i].id << 4) |
                                 (ppu->scanline - ppu->sprites[i].pos_y);
                         }
