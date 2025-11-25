@@ -23,7 +23,12 @@ uint8_t map_cpu_read_002(_cart* cart, uint16_t addr) {
     uint8_t data = 0x00;
     _uxrom* uxrom = cart->mapper.data;
 
-    if (0x8000 <= addr && addr <= 0xBFFF) {
+    if (0x6000 <= addr && addr <= 0x7FFF) {
+        if (cart->prg_ram.size) {
+            uint16_t offset = (addr - 0x6000) & (cart->prg_ram.size - 1);
+            data = cart->prg_ram.data[offset];
+        }
+    } else if (0x8000 <= addr && addr <= 0xBFFF) {
         uint32_t offset = (uxrom->prg_bank_low * 0x4000) + (addr & 0x3FFF);
         data = cart->prg_rom.data[offset];
     } else if (0xC000 <= addr && addr <= 0xFFFF) {
@@ -35,22 +40,27 @@ uint8_t map_cpu_read_002(_cart* cart, uint16_t addr) {
 }
 
 void map_cpu_write_002(_cart* cart, uint16_t addr, uint8_t data) {
-    if (addr >= 0x8000) {
+    if (0x6000 <= addr && addr <= 0x7FFF) {
+        if (cart->prg_ram.size) {
+            uint16_t offset = (addr - 0x6000) & (cart->prg_ram.size - 1);
+            cart->prg_ram.data[offset] = data;
+        }
+    } else if (0x8000 <= addr && addr <= 0xFFFF) {
         _uxrom* uxrom = cart->mapper.data;
-        uint8_t mask = cart->prg_rom_banks - 1;
-        uxrom->prg_bank_low = data & mask;
+        uxrom->prg_bank_low = data & (cart->prg_rom_banks - 1);
     }
 }
-
 
 uint8_t map_ppu_read_002(_cart* cart, uint16_t addr) {
     uint8_t data = 0x00;
 
     if (0x0000 <= addr && addr <= 0x1FFF) {
         if (cart->chr_rom.size) {
-            data = cart->chr_rom.data[addr & (cart->chr_rom.size - 1)];
+            uint16_t offset = addr & (cart->chr_rom.size - 1);
+            data = cart->chr_rom.data[offset];
         } else {
-            data = cart->chr_ram.data[addr & (cart->chr_ram.size - 1)];
+            uint16_t offset = addr & (cart->chr_ram.size - 1);
+            data = cart->chr_ram.data[offset];
         }
     }
 
