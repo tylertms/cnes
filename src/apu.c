@@ -19,7 +19,6 @@ void apu_init(_apu* apu) {
         apu
     );
 
-
     if (!apu->audio_stream) {
         printf("Failed to open audio stream: %s\n", SDL_GetError());
     } else {
@@ -46,7 +45,7 @@ void apu_callback(void *userdata, SDL_AudioStream *astream, int additional_amoun
     uint32_t sine_sample_index = ((_apu*)userdata)->sine_sample_index;
     for (int i = 0; i < samples; i++) {
         float t = (float)sine_sample_index / SAMPLE_RATE;
-        tmp[i] = sinf(2.0f * M_PI * freq * t) * volume;
+        tmp[i] = 0;// = sinf(2.0f * M_PI * freq * t) * volume;
         sine_sample_index++;
 
         if (sine_sample_index >= (int)SAMPLE_RATE)
