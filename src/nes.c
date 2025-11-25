@@ -8,8 +8,6 @@
 uint8_t nes_init(_nes* nes, char* file, _gui* gui) {
     memset(nes, 0, sizeof(_nes));
 
-    apu_init(&nes->apu);
-
     nes->cpu.p_ppu = &nes->ppu;
     nes->cpu.p_cart = &nes->cart;
     nes->cpu.p_input = &nes->input;
@@ -22,13 +20,19 @@ uint8_t nes_init(_nes* nes, char* file, _gui* gui) {
         return 1;
     }
 
+    apu_init(&nes->apu);
     nes_reset(nes);
     return 0;
 }
 
 void nes_deinit(_nes* nes) {
-    apu_deinit(&nes->apu);
-    nes->cart.mapper.deinit(&nes->cart);
+    if ((void*)&nes->apu != NULL) {
+        apu_deinit(&nes->apu);
+    }
+
+    if (nes->cart.mapper.deinit) {
+        nes->cart.mapper.deinit(&nes->cart);
+    }
 }
 
 void nes_reset(_nes* nes) {
