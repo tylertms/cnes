@@ -34,6 +34,8 @@ uint8_t cart_load(_cart* cart, char* file) {
     else parse_ines(cart, header);
 
     cart->mapper = mappers[cart->mapper_id & 0x0FFF];
+    cart->mapper.init(cart);
+
     if (!cart->mapper.cpu_read) {
         fprintf(stderr, "ERROR: Mapper %03d is currently unsupported!\n", cart->mapper_id & 0x0FFF);
         return 1;
@@ -44,6 +46,8 @@ uint8_t cart_load(_cart* cart, char* file) {
 
     size_t prg_rom_size = cart->prg_rom_banks * 0x4000;
     size_t chr_rom_size = cart->chr_rom_banks * 0x2000;
+    size_t prg_ram_size = (size_t)64 << cart->prg_ram_shift;
+    size_t chr_ram_size = (size_t)64 << cart->prg_ram_shift;
 
     cart->prg_rom = (_mem){
       .data = malloc(prg_rom_size),
@@ -56,6 +60,22 @@ uint8_t cart_load(_cart* cart, char* file) {
       .size = chr_rom_size,
       .writeable = 0
     };
+
+    if (cart->prg_ram_shift) {
+        cart->prg_ram = (_mem){
+            .data = malloc(prg_ram_size),
+            .size = prg_ram_size,
+            .writeable = 1
+        };
+    }
+
+    if (cart->chr_ram_shift) {
+        cart->chr_ram = (_mem){
+            .data = malloc(chr_ram_size),
+            .size = chr_ram_size,
+            .writeable = 1
+        };
+    }
 
     int prg_banks_read = fread(cart->prg_rom.data, 0x4000, cart->prg_rom_banks, rom);
     if (prg_banks_read != cart->prg_rom_banks) {
