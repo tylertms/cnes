@@ -1,16 +1,19 @@
 #include "gui.h"
+#include "SDL3/SDL_render.h"
 #include "ppu.h"
 
-int gui_init(_gui* gui) {
-    const int width = 512;
-    const int height = 480;
+int gui_init(_gui* gui, char* file) {
+    const int width = 256 * 3;
+    const int height = 240 * 3;
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         return 1;
     }
 
-    gui->window = SDL_CreateWindow("cnes", width, height, SDL_WINDOW_RESIZABLE);
+    char title[128];
+    snprintf(title, 128, "cnes - %s", file);
+    gui->window = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
     if (!gui->window) {
         SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
         return 1;
