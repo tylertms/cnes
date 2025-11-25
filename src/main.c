@@ -47,7 +47,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
         return SDL_APP_FAILURE;
     }
 
-    state->perf_freq   = SDL_GetPerformanceFrequency();
+    state->perf_freq = SDL_GetPerformanceFrequency();
     state->last_counter = SDL_GetPerformanceCounter();
     state->accumulator = 0.0;
 
