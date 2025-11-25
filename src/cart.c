@@ -17,7 +17,7 @@ uint8_t cart_load(_cart* cart, char* file) {
         return 1;
     };
 
-    if (memcmp(header, "NES\x1B", 3)) {
+    if (memcmp(header, "NES\x1A", 4)) {
         fprintf(stderr, "ERROR: .nes file is not valid!\n");
         return 1;
     }
@@ -34,59 +34,95 @@ uint8_t cart_load(_cart* cart, char* file) {
     else parse_ines(cart, header);
 
     cart->mapper = mappers[cart->mapper_id & 0x0FFF];
-    cart->mapper.init(cart);
 
-    if (!cart->mapper.cpu_read) {
+    if (!cart->mapper.init) {
         fprintf(stderr, "ERROR: Mapper %03d is currently unsupported!\n", cart->mapper_id & 0x0FFF);
         return 1;
     }
+
+    cart->mapper.init(cart);
 
     if (cart->trainer)
         fseek(rom, 0x200, SEEK_CUR);
 
     size_t prg_rom_size = cart->prg_rom_banks * 0x4000;
     size_t chr_rom_size = cart->chr_rom_banks * 0x2000;
-    size_t prg_ram_size = (size_t)64 << cart->prg_ram_shift;
-    size_t chr_ram_size = (size_t)64 << cart->prg_ram_shift;
 
-    cart->prg_rom = (_mem){
-      .data = malloc(prg_rom_size),
-      .size = prg_rom_size,
-      .writeable = 0
-    };
 
-    cart->chr_rom = (_mem){
-      .data = malloc(chr_rom_size),
-      .size = chr_rom_size,
-      .writeable = 0
-    };
+    size_t prg_ram_size = 0, prg_nvram_size = 0;
+    size_t chr_ram_size = 0, chr_nvram_size = 0;
+    if (nes2) {
+        prg_ram_size   = cart->prg_ram_shift    ? (size_t)64 << cart->prg_ram_shift    : 0;
+        prg_nvram_size = cart->prg_nvram_shift  ? (size_t)64 << cart->prg_nvram_shift  : 0;
+        chr_ram_size   = cart->chr_ram_shift    ? (size_t)64 << cart->chr_ram_shift    : 0;
+        chr_nvram_size = cart->chr_nvram_shift  ? (size_t)64 << cart->chr_nvram_shift  : 0;
+    } else {
+        if (cart->prg_ram_banks == 0) prg_ram_size = 0x2000;
+        else prg_ram_size = cart->prg_ram_banks * 0x2000;
+        if (cart->chr_rom_banks == 0) chr_ram_size = 0x2000;
+    }
 
-    if (cart->prg_ram_shift) {
+    printf("PRG ROM: 0x%08zX, PRG RAM: 0x%08zX, PRG NVRAM: 0x%08zX\nCHR ROM: 0x%08zX, CHR RAM: 0x%08zX, CHR NVRAM: 0x%08zX\n",
+        prg_rom_size, prg_ram_size, prg_nvram_size, chr_rom_size, chr_ram_size, chr_nvram_size);
+
+    if (prg_rom_size) {
+        cart->prg_rom = (_mem){
+            .data = calloc(1, prg_rom_size),
+            .size = prg_rom_size,
+            .writeable = 0
+        };
+
+        size_t prg_rom_read = fread(cart->prg_rom.data, 0x01, prg_rom_size, rom);
+        if (prg_rom_read != prg_rom_size) {
+            fprintf(stderr, "ERROR: Failed to read program rom from .nes file!\n");
+            return 1;
+        }
+    }
+
+    if (chr_rom_size) {
+        cart->chr_rom = (_mem){
+            .data = calloc(1, chr_rom_size),
+            .size = chr_rom_size,
+            .writeable = 0
+        };
+
+        size_t chr_rom_read = fread(cart->chr_rom.data, 0x01, chr_rom_size, rom);
+        if (chr_rom_read != chr_rom_size) {
+            fprintf(stderr, "ERROR: Failed to read character rom from .nes file!\n");
+            return 1;
+        }
+    }
+
+    if (prg_ram_size) {
         cart->prg_ram = (_mem){
-            .data = malloc(prg_ram_size),
+            .data = calloc(1, prg_ram_size),
             .size = prg_ram_size,
             .writeable = 1
         };
     }
 
-    if (cart->chr_ram_shift) {
+    if (prg_nvram_size) {
+        cart->prg_nvram = (_mem){
+            .data = calloc(1, prg_nvram_size),
+            .size = prg_nvram_size,
+            .writeable = 1
+        };
+    }
+
+    if (chr_ram_size) {
         cart->chr_ram = (_mem){
-            .data = malloc(chr_ram_size),
+            .data = calloc(1, chr_ram_size),
             .size = chr_ram_size,
             .writeable = 1
         };
     }
 
-    int prg_banks_read = fread(cart->prg_rom.data, 0x4000, cart->prg_rom_banks, rom);
-    if (prg_banks_read != cart->prg_rom_banks) {
-        fprintf(stderr, "ERROR: Failed to read program rom from .nes file!\n");
-        return 1;
-    }
-
-    int chr_banks_read = fread(cart->chr_rom.data, 0x2000, cart->chr_rom_banks, rom);
-    if (chr_banks_read != cart->chr_rom_banks) {
-        fprintf(stderr, "ERROR: Failed to read character rom from .nes file!\n");
-        return 1;
+    if (chr_nvram_size) {
+        cart->chr_nvram = (_mem){
+            .data = calloc(1, chr_nvram_size),
+            .size = chr_nvram_size,
+            .writeable = 1
+        };
     }
 
     return 0;
@@ -104,9 +140,9 @@ uint8_t parse_nes2(_cart* cart, uint8_t header[16]) {
     cart->prg_rom_banks |= (uint16_t)(header[9] & 0x0F) << 8;
     cart->chr_rom_banks |= (uint16_t)(header[9] & 0xF0) << 4;
 
-    cart->prg_ram_shift = header[10] & 0xF0;
+    cart->prg_ram_shift = header[10] & 0x0F;
     cart->prg_nvram_shift = header[10] >> 4;
-    cart->chr_ram_shift = header[11] & 0xF0;
+    cart->chr_ram_shift = header[11] & 0x0F;
     cart->chr_nvram_shift = header[11] >> 4;
 
     cart->cpu_ppu_timing = header[12] & 0x03;
