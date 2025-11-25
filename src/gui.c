@@ -3,6 +3,8 @@
 #include "ppu.h"
 
 int gui_init(_gui* gui, char* file) {
+    memset(gui, 0, sizeof(_gui));
+
     const int width = 256 * 3;
     const int height = 240 * 3;
 
@@ -28,7 +30,6 @@ int gui_init(_gui* gui, char* file) {
     if (!SDL_SetRenderVSync(gui->renderer, SDL_RENDERER_VSYNC_ADAPTIVE)) {
         SDL_SetRenderVSync(gui->renderer, 1);
     }
-
 
     gui->texture = SDL_CreateTexture(
         gui->renderer,
