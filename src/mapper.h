@@ -18,10 +18,12 @@
 MAPDEF(000)
 MAPDEF(001)
 MAPDEF(002)
+MAPDEF(003)
 
 /* MAPPER TABLE */
 static _mapper mappers[768] = {
     MAPPER(000),
     MAPPER(001),
-    MAPPER(002)
+    MAPPER(002),
+    MAPPER(003)
 };
