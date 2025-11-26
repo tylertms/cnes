@@ -7,6 +7,14 @@ typedef void (*map_fn_ctrl)(_cart*);
 typedef uint8_t (*map_fn_read)(_cart*, uint16_t);
 typedef void (*map_fn_write)(_cart*, uint16_t, uint8_t);
 
+typedef enum {
+    MIRROR_HORIZONTAL = 0,
+    MIRROR_VERTICAL   = 1,
+    MIRROR_SINGLE0    = 2,
+    MIRROR_SINGLE1    = 3,
+    MIRROR_FOUR       = 4
+} _mirror;
+
 typedef struct _mapper {
     map_fn_ctrl init;
     map_fn_ctrl deinit;
@@ -33,6 +41,7 @@ typedef struct _cart {
     _mem chr_nvram;
 
     _mapper mapper;
+    _mirror mirror;
 
     uint16_t prg_rom_banks;
     uint16_t chr_rom_banks;

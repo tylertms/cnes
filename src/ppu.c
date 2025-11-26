@@ -403,14 +403,13 @@ void oamdma_cpu_write(_ppu* ppu, uint8_t data) {
 }
 
 uint8_t physical_nametable(_cart* cart, uint8_t logical) {
-    if (cart->alt_ntbl_layout) {
-        return logical & 0x03;
-    }
-
-    if (cart->ntbl_layout == 0) {
-        return (logical & 0x02) ? 1 : 0;
-    } else {
-        return (logical & 0x01) ? 1 : 0;
+    switch (cart->mirror) {
+        case MIRROR_HORIZONTAL: return (logical >> 1) & 1;
+        case MIRROR_VERTICAL:   return logical & 1;
+        case MIRROR_SINGLE0:    return 0;
+        case MIRROR_SINGLE1:    return 1;
+        case MIRROR_FOUR:       return logical & 3;
+        default:                return 0;
     }
 }
 

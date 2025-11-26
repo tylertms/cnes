@@ -29,6 +29,9 @@ uint8_t cart_load(_cart* cart, char* file) {
     cart->alt_ntbl_layout = header[6] & 0x08;
     cart->mapper_id = (header[6] >> 4) | (header[7] & 0xF0);
 
+    if (cart->alt_ntbl_layout) cart->mirror = MIRROR_FOUR;
+    else cart->mirror = cart->ntbl_layout ? MIRROR_VERTICAL : MIRROR_HORIZONTAL;
+
     uint8_t nes2 = (header[7] & 0x0C) == 0x08;
     if (nes2) parse_nes2(cart, header);
     else parse_ines(cart, header);
