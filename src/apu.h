@@ -41,13 +41,30 @@ typedef struct _dmc {
     uint8_t sample_length;
 } _dmc;
 
+typedef struct _status {
+    uint8_t enable_dmc;
+    uint8_t enable_noise;
+    uint8_t enable_triangle;
+    uint8_t enable_pulse2;
+    uint8_t enable_pulse1;
+} _status;
+
+typedef struct _frame_counter {
+    uint8_t mode;
+    uint8_t irq_inhibit;
+} _frame_counter;
+
 typedef struct _apu {
     SDL_AudioStream* audio_stream;
+
     _pulse pulse1;
     _pulse pulse2;
     _triangle triangle;
     _noise noise;
     _dmc dmc;
+
+    _status status;
+    _frame_counter frame_counter;
 } _apu;
 
 void apu_init(_apu* apu);
@@ -59,3 +76,9 @@ void apu_reset(_apu* apu);
 
 uint8_t apu_cpu_read(_apu* apu, uint16_t addr);
 void apu_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
+
+void pulse1_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
+void pulse2_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
+void triangle_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
+void noise_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
+void dmc_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
