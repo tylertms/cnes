@@ -7,10 +7,7 @@ typedef struct _cnrom {
 void map_init_003(_cart* cart) {
     _cnrom* cnrom = malloc(sizeof(_cnrom));
     cart->mapper.data = cnrom;
-
-    *cnrom = (_cnrom){
-        .chr_bank = 0
-    };
+    cnrom->chr_bank = 0;
 }
 
 void map_deinit_003(_cart* cart) {

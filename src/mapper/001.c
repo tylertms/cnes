@@ -9,7 +9,7 @@ typedef struct _mmc1 {
     uint8_t prg_bank;
 } _mmc1;
 
-static void mmc1_apply_control(_cart* cart, _mmc1* mmc1) {
+void mmc1_apply_control(_cart* cart, _mmc1* mmc1) {
     uint8_t m = mmc1->control & 0x03;
     switch (m) {
         case 0:     cart->mirror = MIRROR_SINGLE0;      break;
@@ -19,7 +19,7 @@ static void mmc1_apply_control(_cart* cart, _mmc1* mmc1) {
     }
 }
 
-static void mmc1_commit(_cart* cart, uint16_t addr) {
+void mmc1_commit(_cart* cart, uint16_t addr) {
     _mmc1* mmc1 = (_mmc1*)cart->mapper.data;
     uint8_t value = mmc1->load & 0x1F;
 
@@ -39,18 +39,10 @@ static void mmc1_commit(_cart* cart, uint16_t addr) {
 }
 
 void map_init_001(_cart* cart) {
-    _mmc1* mmc1 = malloc(sizeof(_mmc1));
+    _mmc1* mmc1 = calloc(1, sizeof(_mmc1));
     cart->mapper.data = mmc1;
 
-    *mmc1 = (_mmc1){
-        .load        = 0,
-        .write_count = 0,
-        .control     = 0x1C,
-        .chr_bank0   = 0,
-        .chr_bank1   = 0,
-        .prg_bank    = 0
-    };
-
+    mmc1->control = 0x1C;
     mmc1_apply_control(cart, mmc1);
 }
 

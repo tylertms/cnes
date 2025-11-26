@@ -6,13 +6,9 @@ typedef struct _uxrom {
 } _uxrom;
 
 void map_init_002(_cart* cart) {
-    _uxrom* uxrom = malloc(sizeof(_uxrom));
+    _uxrom* uxrom = calloc(1, sizeof(_uxrom));
     cart->mapper.data = uxrom;
-
-    *uxrom = (_uxrom){
-        .prg_bank_low = 0,
-        .prg_bank_high = cart->prg_rom_banks - 1,
-    };
+    uxrom->prg_bank_high = cart->prg_rom_banks - 1;
 }
 
 void map_deinit_002(_cart* cart) {
