@@ -90,6 +90,10 @@ typedef struct _dmc {
 
     uint8_t silence;
     uint8_t irq_pending;
+
+    uint8_t dma_active;
+    uint8_t dma_cycles_left;
+    uint16_t dma_addr;
 } _dmc;
 
 typedef struct _status {
@@ -193,6 +197,7 @@ uint8_t sample_noise(_noise *n, uint8_t enabled);
 
 void clock_dmc(_apu *apu);
 uint8_t sample_dmc(_dmc *d, uint8_t enabled);
+void dmc_dma_complete(_apu* apu);
 
 float mix(float pulse1, float pulse2, float triangle, float noise, float dmc);
 

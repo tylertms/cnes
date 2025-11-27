@@ -56,13 +56,16 @@ void nes_clock(_nes* nes) {
         frame_complete =
             ppu_clock(&nes->ppu) |
             ppu_clock(&nes->ppu) |
-            ppu_clock(&nes->ppu) ;
+            ppu_clock(&nes->ppu);
 
         apu_clock(&nes->apu);
 
-        if (!nes->ppu.dma.is_transfer) {
-            cpu_clock(&nes->cpu);
-        } else {
+        if (nes->apu.dmc.dma_active) {
+            if (--nes->apu.dmc.dma_cycles_left == 0) {
+                dmc_dma_complete(&nes->apu);
+                nes->apu.dmc.dma_active = 0;
+            }
+        } else if (nes->ppu.dma.is_transfer) {
             if (nes->ppu.dma.dummy_cycle) {
                 if (nes->master_clock & 1)
                     nes->ppu.dma.dummy_cycle = 0;
@@ -75,9 +78,14 @@ void nes_clock(_nes* nes) {
                         nes->ppu.dma.dummy_cycle = 1;
                     }
                 } else {
-                    nes->ppu.dma.data = cpu_read(&nes->cpu, (nes->ppu.dma.page << 8) | nes->ppu.dma.addr);
+                    nes->ppu.dma.data = cpu_read(
+                        &nes->cpu,
+                        (nes->ppu.dma.page << 8) | nes->ppu.dma.addr
+                    );
                 }
             }
+        } else {
+            cpu_clock(&nes->cpu);
         }
 
         nes->master_clock++;

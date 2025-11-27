@@ -609,10 +609,18 @@ static void dmc_fill_sample_buffer(_apu* apu) {
 
     if (d->bytes_remaining == 0) return;
     if (!d->sample_buffer_empty) return;
+    if (d->dma_active) return;
 
-    uint8_t b = cpu_read(apu->p_cpu, d->current_address);
+    d->dma_active = 1;
+    d->dma_cycles_left = 4;
+    d->dma_addr = d->current_address;
+}
 
-    d->sample_buffer       = b;
+void dmc_dma_complete(_apu* apu) {
+    _dmc* d = &apu->dmc;
+    uint8_t b = cpu_read(apu->p_cpu, d->dma_addr);
+
+    d->sample_buffer = b;
     d->sample_buffer_empty = 0;
 
     d->current_address++;
