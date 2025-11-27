@@ -13,10 +13,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
-        printf("Failed to init SDL audio: %s\n", SDL_GetError());
-    }
-
     _gui gui;
     if (gui_init(&gui, argv[1])) {
         gui_deinit(&gui);
@@ -31,22 +27,38 @@ int main(int argc, char **argv) {
     }
 
     uint64_t perf_freq = SDL_GetPerformanceFrequency();
-    uint64_t last_counter = SDL_GetPerformanceCounter();
-    double accumulator = 0.0;
+    uint64_t counter0 = SDL_GetPerformanceCounter();
+    double t0 = (double)counter0 / (double)perf_freq;
+    double spin_threshold = 0.001;
+    double max_lag = 0.1;
+    uint64_t last_frame_end = 0;
+    uint64_t frame_index = 0;
 
     while (!nes.cpu.halt) {
-        uint64_t now = SDL_GetPerformanceCounter();
-        double dt = (double)(now - last_counter) / (double)perf_freq;
-        last_counter = now;
+        double target_time = t0 + (double)frame_index * NES_FRAME_TIME;
 
-        if (dt > 0.25) dt = 0.25;
-        accumulator += dt;
+        for (;;) {
+            uint64_t now_counter = SDL_GetPerformanceCounter();
+            double now = (double)now_counter / (double)perf_freq;
+            double remaining = target_time - now;
+            if (remaining <= 0.0) break;
+            if (remaining > spin_threshold) {
+                uint32_t ms = (uint32_t)((remaining - spin_threshold) * 1000.0);
+                if (ms > 0) {
+                    SDL_Delay(ms);
+                    continue;
+                }
+            }
+            for (;;) {
+                uint64_t c2 = SDL_GetPerformanceCounter();
+                if ((double)c2 / (double)perf_freq >= target_time) break;
+            }
+            break;
+        }
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_KEY_DOWN && event.key.repeat) {
-                continue;
-            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.repeat) continue;
 
             switch (event.type) {
             case SDL_EVENT_QUIT:
@@ -83,17 +95,37 @@ int main(int argc, char **argv) {
 
         nes.input.controller[0] = c0;
 
-        if (accumulator >= NES_FRAME_TIME) {
-            accumulator -= NES_FRAME_TIME;
-            if (accumulator > NES_FRAME_TIME) {
-                accumulator = NES_FRAME_TIME;
-            }
+        uint64_t frame_start = SDL_GetPerformanceCounter();
 
-            nes_clock(&nes);
-            gui_draw(&gui);
+        nes_clock(&nes);
+        gui_draw(&gui);
+
+        uint64_t frame_end = SDL_GetPerformanceCounter();
+
+        double frame_time = (double)(frame_end - frame_start) / (double)perf_freq;
+        double interval = 0.0;
+        if (last_frame_end != 0) {
+            interval = (double)(frame_end - last_frame_end) / (double)perf_freq;
         }
 
-        SDL_Delay(0);
+        double percentage = (frame_time / NES_FRAME_TIME) * 100.0;
+        double max_fps = 1.0 / frame_time;
+
+        printf("%6.3fms | %6.3fms | %4.1f%% | %4.0f FPS\n",
+               frame_time * 1000.0,
+               interval * 1000.0,
+               percentage,
+               max_fps);
+
+        last_frame_end = frame_end;
+        frame_index++;
+
+        double now = (double)frame_end / (double)perf_freq;
+        double current_target = t0 + (double)frame_index * NES_FRAME_TIME;
+        if (now - current_target > max_lag) {
+            t0 = now;
+            frame_index = 0;
+        }
     }
 
     nes_deinit(&nes);
