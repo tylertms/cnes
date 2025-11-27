@@ -5,14 +5,23 @@ typedef struct _uxrom {
     uint8_t prg_bank_high;
 } _uxrom;
 
-void map_init_002(_cart* cart) {
+uint8_t map_init_002(_cart* cart) {
     _uxrom* uxrom = calloc(1, sizeof(_uxrom));
+    if (uxrom == NULL) return 1;
     cart->mapper.data = uxrom;
     uxrom->prg_bank_high = cart->prg_rom_banks - 1;
+
+    return 0;
 }
 
-void map_deinit_002(_cart* cart) {
+uint8_t map_deinit_002(_cart* cart) {
     free(cart->mapper.data);
+    return 0;
+}
+
+uint8_t map_irq_pending_002(_cart *cart) {
+    (void)cart;
+    return 0;
 }
 
 uint8_t map_cpu_read_002(_cart* cart, uint16_t addr) {

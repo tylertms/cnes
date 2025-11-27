@@ -38,16 +38,24 @@ void mmc1_commit(_cart* cart, uint16_t addr) {
     mmc1->write_count = 0;
 }
 
-void map_init_001(_cart* cart) {
+uint8_t map_init_001(_cart* cart) {
     _mmc1* mmc1 = calloc(1, sizeof(_mmc1));
+    if (mmc1 == NULL) return 1;
     cart->mapper.data = mmc1;
 
     mmc1->control = 0x1C;
     mmc1_apply_control(cart, mmc1);
+    return 0;
 }
 
-void map_deinit_001(_cart* cart) {
+uint8_t map_deinit_001(_cart* cart) {
     free(cart->mapper.data);
+    return 0;
+}
+
+uint8_t map_irq_pending_001(_cart *cart) {
+    (void)cart;
+    return 0;
 }
 
 uint8_t map_cpu_read_001(_cart* cart, uint16_t addr) {

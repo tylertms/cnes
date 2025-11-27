@@ -1,11 +1,18 @@
 #include "../mapper.h"
 
-void map_init_000(_cart* cart) {
+uint8_t map_init_000(_cart* cart) {
     (void)cart;
+    return 0;
 }
 
-void map_deinit_000(_cart* cart) {
+uint8_t map_deinit_000(_cart* cart) {
     (void)cart;
+    return 0;
+}
+
+uint8_t map_irq_pending_000(_cart *cart) {
+    (void)cart;
+    return 0;
 }
 
 uint8_t map_cpu_read_000(_cart* cart, uint16_t addr) {

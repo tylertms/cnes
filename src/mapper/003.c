@@ -4,14 +4,23 @@ typedef struct _cnrom {
     uint8_t chr_bank;
 } _cnrom;
 
-void map_init_003(_cart* cart) {
-    _cnrom* cnrom = malloc(sizeof(_cnrom));
+uint8_t map_init_003(_cart* cart) {
+    _cnrom* cnrom = calloc(1, sizeof(_cnrom));
+    if (cnrom == NULL) return 1;
     cart->mapper.data = cnrom;
     cnrom->chr_bank = 0;
+
+    return 0;
 }
 
-void map_deinit_003(_cart* cart) {
+uint8_t map_deinit_003(_cart* cart) {
     free(cart->mapper.data);
+    return 0;
+}
+
+uint8_t map_irq_pending_003(_cart *cart) {
+    (void)cart;
+    return 0;
 }
 
 uint8_t map_cpu_read_003(_cart* cart, uint16_t addr) {

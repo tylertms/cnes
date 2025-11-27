@@ -19,8 +19,6 @@ uint8_t nes_init(_nes* nes, char* file, _gui* gui) {
     nes->ppu.p_gui = gui;
     nes->ppu.p_cpu = &nes->cpu;
 
-    nes->cart.p_cpu = &nes->cpu;
-
     uint8_t res = cart_load(&nes->cart, file);
     if (res) {
         return 1;
@@ -59,6 +57,9 @@ void nes_clock(_nes* nes) {
             ppu_clock(&nes->ppu);
 
         apu_clock(&nes->apu);
+
+        nes->cpu.irq_pending = (nes->apu.frame_counter_irq || nes->apu.dmc.irq_pending) ||
+                (nes->cart.mapper.irq_pending(&nes->cart));
 
         if (nes->apu.dmc.dma_active) {
             if (--nes->apu.dmc.dma_cycles_left == 0) {

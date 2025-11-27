@@ -10,6 +10,8 @@ typedef struct _mmc3 {
     uint8_t irq_reload_flag;
     uint8_t irq_enable;
 
+    uint8_t irq_pending;
+
     uint32_t prg_base[4];
     uint32_t chr_base[8];
 } _mmc3;
@@ -87,12 +89,13 @@ void mmc3_scanline_tick(_cart* cart) {
     }
 
     if (mmc3->irq_counter == 0 && mmc3->irq_enable) {
-        cart->p_cpu->irq_pending = 1;
+        mmc3->irq_pending = 1;
     }
 }
 
-void map_init_004(_cart* cart) {
+uint8_t map_init_004(_cart* cart) {
     _mmc3* mmc3 = calloc(1, sizeof(_mmc3));
+    if (mmc3 == NULL) return 1;
     cart->mapper.data = mmc3;
 
     uint8_t total_8k = (uint8_t)(cart->prg_rom_banks * 2);
@@ -104,10 +107,18 @@ void map_init_004(_cart* cart) {
 
     mmc3_update_prg(cart, mmc3);
     mmc3_update_chr(cart, mmc3);
+
+    return 0;
 }
 
-void map_deinit_004(_cart* cart) {
+uint8_t map_deinit_004(_cart* cart) {
     free(cart->mapper.data);
+    return 0;
+}
+
+uint8_t map_irq_pending_004(_cart *cart) {
+    _mmc3* mmc3 = cart->mapper.data;
+    return mmc3->irq_pending;
 }
 
 uint8_t map_cpu_read_004(_cart* cart, uint16_t addr) {
@@ -167,7 +178,7 @@ void map_cpu_write_004(_cart* cart, uint16_t addr, uint8_t data) {
             mmc3->irq_enable = 1;
         } else {
             mmc3->irq_enable = 0;
-            cart->p_cpu->irq_pending = 0;
+            mmc3->irq_pending = 0;
         }
     }
 }

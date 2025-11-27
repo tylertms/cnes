@@ -4,16 +4,23 @@ typedef struct _axrom {
     uint8_t prg_bank;
 } _axrom;
 
-void map_init_007(_cart* cart) {
+uint8_t map_init_007(_cart* cart) {
     _axrom* axrom = calloc(1, sizeof(_axrom));
     cart->mapper.data = axrom;
 
     axrom->prg_bank = 0;
     cart->mirror = MIRROR_SINGLE0;
+    return 0;
 }
 
-void map_deinit_007(_cart* cart) {
+uint8_t map_deinit_007(_cart* cart) {
     free(cart->mapper.data);
+    return 0;
+}
+
+uint8_t map_irq_pending_007(_cart *cart) {
+    (void)cart;
+    return 0;
 }
 
 uint8_t map_cpu_read_007(_cart* cart, uint16_t addr) {
