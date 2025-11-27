@@ -192,7 +192,7 @@ static inline float release_smooth(float rel, int gate_on) {
 
 static inline float dc_block(_apu* apu, float x) {
     float y = x - apu->dc_prev_in + 0.995f * apu->dc_prev_out;
-    apu->dc_prev_in  = x;
+    apu->dc_prev_in = x;
     apu->dc_prev_out = y;
     return y;
 }

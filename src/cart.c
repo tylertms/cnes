@@ -55,10 +55,10 @@ uint8_t cart_load(_cart* cart, char* file) {
     size_t prg_ram_size = 0, prg_nvram_size = 0;
     size_t chr_ram_size = 0, chr_nvram_size = 0;
     if (nes2) {
-        prg_ram_size   = cart->prg_ram_shift    ? (size_t)64 << cart->prg_ram_shift    : 0;
-        prg_nvram_size = cart->prg_nvram_shift  ? (size_t)64 << cart->prg_nvram_shift  : 0;
-        chr_ram_size   = cart->chr_ram_shift    ? (size_t)64 << cart->chr_ram_shift    : 0;
-        chr_nvram_size = cart->chr_nvram_shift  ? (size_t)64 << cart->chr_nvram_shift  : 0;
+        prg_ram_size = cart->prg_ram_shift ? (size_t)64 << cart->prg_ram_shift : 0;
+        prg_nvram_size = cart->prg_nvram_shift ? (size_t)64 << cart->prg_nvram_shift : 0;
+        chr_ram_size = cart->chr_ram_shift ? (size_t)64 << cart->chr_ram_shift : 0;
+        chr_nvram_size = cart->chr_nvram_shift ? (size_t)64 << cart->chr_nvram_shift : 0;
     } else {
         if (cart->prg_ram_banks == 0) prg_ram_size = 0x2000;
         else prg_ram_size = cart->prg_ram_banks * 0x2000;

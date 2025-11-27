@@ -373,7 +373,7 @@ uint8_t op_brk(_cpu* cpu) {
     push(cpu, flags);
     set_flag(cpu, IRQ_DS, 1);
 
-    uint16_t low  = cpu_read(cpu, IRQ_VECTOR);
+    uint16_t low = cpu_read(cpu, IRQ_VECTOR);
     uint16_t high = cpu_read(cpu, IRQ_VECTOR + 1);
     cpu->pc = (high << 8) | low;
     cpu->cycles = 7;

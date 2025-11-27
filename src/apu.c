@@ -435,7 +435,7 @@ void clock_pulse_length(_pulse* p) {
 
 static uint16_t pulse_sweep_target(_pulse *p, int is_pulse1) {
     int16_t period = (int16_t)(p->timer & 0x7FF);
-    int16_t delta  = (int16_t)(period >> p->shift);
+    int16_t delta = (int16_t)(period >> p->shift);
 
     int16_t target;
 
