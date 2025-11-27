@@ -8,12 +8,17 @@
 uint8_t nes_init(_nes* nes, char* file, _gui* gui) {
     memset(nes, 0, sizeof(_nes));
 
+    nes->cpu.p_apu = &nes->apu;
     nes->cpu.p_ppu = &nes->ppu;
     nes->cpu.p_cart = &nes->cart;
     nes->cpu.p_input = &nes->input;
+
+    nes->apu.p_cpu = &nes->cpu;
+
     nes->ppu.p_cart = &nes->cart;
     nes->ppu.p_gui = gui;
     nes->ppu.p_cpu = &nes->cpu;
+
     nes->cart.p_cpu = &nes->cpu;
 
     uint8_t res = cart_load(&nes->cart, file);
@@ -37,6 +42,7 @@ void nes_deinit(_nes* nes) {
 }
 
 void nes_reset(_nes* nes) {
+    apu_reset(&nes->apu);
     cpu_reset(&nes->cpu);
 }
 
@@ -47,6 +53,8 @@ void nes_clock(_nes* nes) {
             ppu_clock(&nes->ppu) |
             ppu_clock(&nes->ppu) |
             ppu_clock(&nes->ppu) ;
+
+        apu_clock(&nes->apu);
 
         if (!nes->ppu.dma.is_transfer) {
             cpu_clock(&nes->cpu);
