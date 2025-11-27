@@ -11,6 +11,7 @@
 #define AMF(mode) am_##mode(_cpu* cpu)
 
 typedef struct _cpu _cpu;
+typedef struct _apu _apu;
 typedef struct _ppu _ppu;
 typedef struct _cart _cart;
 typedef struct _input _input;
@@ -46,6 +47,7 @@ typedef struct _cpu {
     uint8_t irq_pending;
     uint8_t nmi_pending;
 
+    _apu* p_apu;
     _ppu* p_ppu;            // ref for ppu regs cpu-side
     _cart* p_cart;          // ref for cart mapper cpu-side
     _input* p_input;        // ref for controller input
@@ -101,7 +103,7 @@ void branch(_cpu* cpu);
 
 void print_state(_cpu* cpu);
 
-static _instr instructions[256] = {
+static const _instr instructions[256] = {
     IN(brk,imp,7,0), IN(ora,idx,6,1), IN(hlt,imp,0,0), IN(slo,idx,8,1), IN(nop,zpg,3,1), IN(ora,zpg,3,1), IN(asl,zpg,5,1), IN(slo,zpg,5,1),     // 0x00 - 0x07
     IN(php,imp,3,0), IN(ora,imm,2,1), IN(asl,acc,2,0), IN(anc,imm,2,1), IN(nop,abs,4,2), IN(ora,abs,4,2), IN(asl,abs,6,2), IN(slo,abs,6,2),     // 0x08 - 0x0F
     IN(bpl,rel,2,1), IN(ora,idy,5,1), IN(hlt,imp,0,0), IN(slo,idy,8,1), IN(nop,zpx,4,1), IN(ora,zpx,4,1), IN(asl,zpx,6,1), IN(slo,zpx,6,1),     // 0x10 - 0x17

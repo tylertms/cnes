@@ -1,4 +1,5 @@
 #include "cpu.h"
+#include "apu.h"
 #include "cart.h"
 #include "input.h"
 #include "ppu.h"
@@ -101,12 +102,12 @@ uint8_t cpu_read(_cpu* cpu, uint16_t addr) {
     if (0x0000 <= addr && addr <= 0x1FFF) {
         data = cpu->ram[addr & 0x07FF];
     } else if (0x2000 <= addr && addr <= 0x3FFF) {
-        if (cpu->p_ppu) {
-            uint16_t reg_addr = 0x2000 | (addr & 0x0007);
-            data = ppu_cpu_read(cpu->p_ppu, reg_addr);
-        }
+        uint16_t reg_addr = 0x2000 | (addr & 0x0007);
+        data = ppu_cpu_read(cpu->p_ppu, reg_addr);
     } else if (0x4016 <= addr && addr <= 0x4017) {
         data = input_cpu_read(cpu->p_input, addr);
+    } else if (addr == 0x4015) {
+        data = apu_cpu_read(cpu->p_apu, addr);
     } else if (0x4020 <= addr && addr <= 0xFFFF) {
         if (cpu->p_cart) {
             data = cart_cpu_read(cpu->p_cart, addr);
@@ -120,10 +121,10 @@ void cpu_write(_cpu* cpu, uint16_t addr, uint8_t data) {
     if (0x0000 <= addr && addr <= 0x1FFF) {
         cpu->ram[addr & 0x07FF] = data;
     } else if (0x2000 <= addr && addr <= 0x3FFF) {
-        if (cpu->p_ppu) {
-            uint16_t reg_addr = 0x2000 | (addr & 0x0007);
-            ppu_cpu_write(cpu->p_ppu, reg_addr, data);
-        }
+        uint16_t reg_addr = 0x2000 | (addr & 0x0007);
+        ppu_cpu_write(cpu->p_ppu, reg_addr, data);
+    } else if ((0x4000 <= addr && addr <= 0x4013) || addr == 0x4015 || addr == 0x4017) {
+        apu_cpu_write(cpu->p_apu, addr, data);
     } else if (addr == 0x4014) {
         oamdma_cpu_write(cpu->p_ppu, data);
     } else if (addr == 0x4016) {
