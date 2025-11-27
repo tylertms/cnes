@@ -109,7 +109,7 @@ void apu_clock(_apu* apu) {
         float s_dmc = raw_dmc * apu->dmc_release;
 
         float sample = mix(s_pulse1, s_pulse2, s_triangle, s_noise, s_dmc);
-        apu->sample_buffer[apu->sample_write++] = sample;
+        apu->sample_buffer[apu->sample_write++] = sample * GLOBAL_VOLUME;
 
         if (apu->sample_write == APU_BUFFER_SAMPLES) {
             SDL_PutAudioStreamData(
