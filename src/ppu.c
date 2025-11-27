@@ -371,9 +371,9 @@ uint8_t ppu_cpu_read(_ppu* ppu, uint16_t addr) {
     uint8_t data = 0x00;
     switch (addr) {
         case PPUSTATUS: data = ppustatus_cpu_read(ppu); break;
-        case OAMDATA: data = oamdata_cpu_read(ppu); break;
-        case PPUDATA: data = ppudata_cpu_read(ppu); break;
-        default: data = ppu->ppudata; break;
+        case OAMDATA:   data = oamdata_cpu_read(ppu);   break;
+        case PPUDATA:   data = ppudata_cpu_read(ppu);   break;
+        default:        data = ppu->ppudata;            break;
     }
 
     return data;
@@ -383,14 +383,14 @@ void ppu_cpu_write(_ppu* ppu, uint16_t addr, uint8_t data) {
     ppu_bus_set(ppu, data);
 
     switch (addr) {
-        case PPUCTRL: ppuctrl_cpu_write(ppu, data); break;
-        case PPUMASK: ppumask_cpu_write(ppu, data); break;
-        case OAMADDR: oamaddr_cpu_write(ppu, data); break;
-        case OAMDATA: oamdata_cpu_write(ppu, data); break;
+        case PPUCTRL:   ppuctrl_cpu_write(ppu, data);   break;
+        case PPUMASK:   ppumask_cpu_write(ppu, data);   break;
+        case OAMADDR:   oamaddr_cpu_write(ppu, data);   break;
+        case OAMDATA:   oamdata_cpu_write(ppu, data);   break;
         case PPUSCROLL: ppuscroll_cpu_write(ppu, data); break;
-        case PPUADDR: ppuaddr_cpu_write(ppu, data); break;
-        case PPUDATA: ppudata_cpu_write(ppu, data); break;
-        case OAMDMA: oamdma_cpu_write(ppu, data); break;
+        case PPUADDR:   ppuaddr_cpu_write(ppu, data);   break;
+        case PPUDATA:   ppudata_cpu_write(ppu, data);   break;
+        case OAMDMA:    oamdma_cpu_write(ppu, data);    break;
         default: return;
     }
 }
@@ -491,10 +491,10 @@ void oamdma_cpu_write(_ppu* ppu, uint8_t data) {
 uint8_t physical_nametable(_cart* cart, uint8_t logical) {
     switch (cart->mirror) {
         case MIRROR_HORIZONTAL: return (logical >> 1) & 1;
-        case MIRROR_VERTICAL: return logical & 1;
-        case MIRROR_SINGLE0: return 0;
-        case MIRROR_SINGLE1: return 1;
-        case MIRROR_FOUR: return logical & 3;
+        case MIRROR_VERTICAL:   return logical & 1;
+        case MIRROR_SINGLE0:    return 0;
+        case MIRROR_SINGLE1:    return 1;
+        case MIRROR_FOUR:       return logical & 3;
         default: return 0;
     }
 }
