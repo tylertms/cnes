@@ -13,6 +13,8 @@ int gui_init(_gui* gui, char* file) {
         return 1;
     }
 
+    SDL_SetHint(SDL_HINT_TIMER_RESOLUTION, "1");
+
     char title[128];
     snprintf(title, 128, "cnes - %s", file);
     gui->window = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
