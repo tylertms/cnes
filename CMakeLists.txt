@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
 project(cnes LANGUAGES C)
 
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
 include(FetchContent)
 FetchContent_Declare(
     SDL3
@@ -30,18 +33,23 @@ target_compile_options(cnes PRIVATE
     -Wall
     -Wextra
     -Wpedantic
-)
-
-target_compile_options(cnes PRIVATE
-    $<$<CONFIG:Debug>:-O0>
-    $<$<CONFIG:Debug>:-g3>
+    $<$<CONFIG:Debug>:-O2>
+    $<$<CONFIG:Debug>:-g>
     $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
     $<$<CONFIG:Debug>:-fno-optimize-sibling-calls>
-    $<$<CONFIG:Debug>:-fsanitize=address,undefined>
+    $<$<CONFIG:Debug>:-DNES_PROFILING=1>
+    $<$<CONFIG:Debug>:-pg>
+    $<$<CONFIG:Release>:-O3>
+    $<$<CONFIG:Release>:-DNDEBUG>
+    $<$<CONFIG:Release>:-march=native>
+    $<$<CONFIG:Release>:-mtune=native>
+    $<$<CONFIG:Release>:-fstrict-aliasing>
+    $<$<CONFIG:Release>:-ffast-math>
 )
 
 target_link_options(cnes PRIVATE
-    $<$<CONFIG:Debug>:-fsanitize=address,undefined>
+    $<$<CONFIG:Debug>:-pg>
+    $<$<CONFIG:Release>:-flto>
 )
 
 target_link_libraries(cnes PRIVATE SDL3::SDL3 m)
