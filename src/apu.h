@@ -4,7 +4,7 @@
 #define CPU_FREQ_NTSC 1789773.0
 #define SAMPLE_RATE 48000.0
 #define APU_BUFFER_SAMPLES 512
-#define GLOBAL_VOLUME 2.0
+#define GLOBAL_VOLUME 1.0
 
 typedef struct _pulse {
     uint8_t duty;
