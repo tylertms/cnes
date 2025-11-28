@@ -159,7 +159,7 @@ jobs:
       - name: Create Tag
         run: |
           VERSION="${{ github.event.inputs.version }}"
-          TAG="v$VERSION"
+          TAG="$VERSION"
 
           git fetch --tags
 
@@ -175,7 +175,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ github.event.inputs.version }}
+          tag_name: ${{ github.event.inputs.version }}
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
