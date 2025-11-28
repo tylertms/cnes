@@ -1,4 +1,5 @@
 #include "gui.h"
+#include "dcimgui.h"
 #include "ppu.h"
 #include <stdio.h>
 
@@ -53,6 +54,16 @@ int gui_init(_gui* gui, char* file) {
         return 1;
     }
 
+    ImGuiContext *ctx = ImGui_CreateContext(NULL);
+    ImGui_SetCurrentContext(ctx);
+    cImGui_ImplSDL3_InitForSDLRenderer(gui->window, gui->renderer);
+    cImGui_ImplSDLRenderer3_Init(gui->renderer);
+
+    ImGuiIO* io = ImGui_GetIO();
+    io->ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+    io->ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io->ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
     return 0;
 }
 
@@ -67,11 +78,22 @@ void set_pixel(_gui* gui, uint16_t x, uint16_t y, uint32_t color) {
 }
 
 void gui_draw(_gui* gui) {
+    if (!gui || !gui->renderer) return;
+
+    cImGui_ImplSDL3_NewFrame();
+    cImGui_ImplSDLRenderer3_NewFrame();
+    ImGui_NewFrame();
+
+    ImGui_Begin("cnes Debug", NULL, 0);
+    ImGui_Text("Hello from ImGui!");
+    ImGui_Text("FPS: %.1f", ImGui_GetIO()->Framerate);
+    ImGui_End();
+
+    ImGui_Render();
+
     SDL_UpdateTexture(
-        gui->texture,
-        NULL,
-        gui->pixels,
-        NES_W * 4
+        gui->texture, NULL,
+        gui->pixels, NES_W * 4
     );
 
     SDL_RenderClear(gui->renderer);
@@ -82,11 +104,22 @@ void gui_draw(_gui* gui) {
     SDL_FRect dst = { 0.0f, 0.0f, (float)win_w, (float)win_h };
 
     SDL_RenderTexture(gui->renderer, gui->texture, &src, &dst);
+
+    cImGui_ImplSDLRenderer3_RenderDrawData(ImGui_GetDrawData(), gui->renderer);
+
     SDL_RenderPresent(gui->renderer);
 }
 
 void gui_deinit(_gui *gui) {
     if (!gui) return;
+
+    if (gui->imgui) {
+        ImGui_SetCurrentContext(gui->imgui);
+        cImGui_ImplSDLRenderer3_Shutdown();
+        cImGui_ImplSDL3_Shutdown();
+        ImGui_DestroyContext(gui->imgui);
+        gui->imgui = NULL;
+    }
 
     if (gui->pixels) {
         SDL_free(gui->pixels);
