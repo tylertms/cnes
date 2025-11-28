@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
     uint64_t last_frame_end = 0;
     uint64_t frame_index = 0;
 
-    while (!nes.cpu.halt) {
+    while (!nes.cpu.halt && !gui.quit) {
         double target_time = t0 + (double)frame_index * NES_FRAME_TIME;
 
         for (;;) {
