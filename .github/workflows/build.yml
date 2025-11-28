@@ -19,35 +19,41 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             arch: x64
             artifact: linux-x64
           - os: ubuntu-24.04-arm
             arch: arm64
             artifact: linux-arm64
 
+          - os: macos-13
+            arch: x64
+            artifact: macos-x64
           - os: macos-latest
-            arch: universal
-            artifact: macos-universal
+            arch: arm64
+            artifact: macos-arm64
 
           - os: windows-latest
             arch: x64
             artifact: windows-x64
-            msvc_arch: x64
-          - os: windows-latest
-            arch: x86
-            artifact: windows-x86
-            msvc_arch: Win32
-          - os: windows-latest
-            arch: arm64
-            artifact: windows-arm64
-            msvc_arch: ARM64
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        if: matrix.os == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkg-config
 
       - name: Cache SDL3
         uses: actions/cache@v4
@@ -79,22 +85,13 @@ jobs:
       - name: Configure (MacOS/Linux)
         if: matrix.os != 'windows-latest'
         run: |
-          if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            cmake -S . -B build \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
-          else
-            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          fi
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Configure (Windows)
         if: matrix.os == 'windows-latest'
+        shell: msys2 {0}
         run: |
-          cmake -S . -B build `
-            -G "Visual Studio 17 2022" `
-            -A "${{ matrix.msvc_arch }}" `
-            -DCMAKE_BUILD_TYPE=Release
-        shell: pwsh
+          cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build (MacOS/Linux)
         if: matrix.os != 'windows-latest'
@@ -103,9 +100,9 @@ jobs:
 
       - name: Build (Windows)
         if: matrix.os == 'windows-latest'
+        shell: msys2 {0}
         run: |
-          cmake --build build --config Release --parallel
-        shell: pwsh
+          cmake --build build --parallel
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -157,14 +154,12 @@ jobs:
           tag_name: v${{ github.event.inputs.version }}
           name: Release ${{ github.event.inputs.version }}
           body: |
-            Automated multi-OS, multi-arch release.
-
             Version: ${{ github.event.inputs.version }}
 
             Artifacts:
             - Linux x64 / arm64
-            - macOS universal (x86_64 + arm64)
-            - Windows x86 / x64 / ARM64
+            - macOS x64 / arm64
+            - Windows x64 (MinGW GCC)
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
