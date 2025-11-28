@@ -1,6 +1,6 @@
 #include "gui.h"
-#include "SDL3/SDL_render.h"
 #include "ppu.h"
+#include <stdio.h>
 
 int gui_init(_gui* gui, char* file) {
     memset(gui, 0, sizeof(_gui));

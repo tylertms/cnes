@@ -65,8 +65,8 @@ int main(int argc, char **argv) {
                 break;
 
             case SDL_EVENT_KEY_DOWN:
-                if (event.key.scancode == SDL_SCANCODE_BACKSPACE |
-                    event.key.scancode == SDL_SCANCODE_DELETE) {
+                if ((event.key.scancode == SDL_SCANCODE_BACKSPACE) ||
+                    (event.key.scancode == SDL_SCANCODE_DELETE)) {
                     nes_reset(&nes);
                 } else {
                     SDL_HideCursor();

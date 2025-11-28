@@ -315,21 +315,26 @@ uint8_t op_axs(_cpu* cpu) {
 }
 
 uint8_t op_bcc(_cpu* cpu) {
-    if (!get_flag(cpu, CARRY))
+    if (!get_flag(cpu, CARRY)) {
         branch(cpu);
+    }
 
 	return 0;
 }
 
 uint8_t op_bcs(_cpu* cpu) {
-    if (get_flag(cpu, CARRY))
+    if (get_flag(cpu, CARRY)) {
         branch(cpu);
+    }
+
 	return 0;
 }
 
 uint8_t op_beq(_cpu* cpu) {
-    if (get_flag(cpu, ZERO))
+    if (get_flag(cpu, ZERO)) {
         branch(cpu);
+    }
+
     return 0;
 }
 
@@ -343,20 +348,26 @@ uint8_t op_bit(_cpu* cpu) {
 }
 
 uint8_t op_bmi(_cpu* cpu) {
-    if (get_flag(cpu, NEGATIVE))
+    if (get_flag(cpu, NEGATIVE)) {
         branch(cpu);
+    }
+
 	return 0;
 }
 
 uint8_t op_bne(_cpu* cpu) {
-    if (!get_flag(cpu, ZERO))
+    if (!get_flag(cpu, ZERO)) {
         branch(cpu);
+    }
+
 	return 0;
 }
 
 uint8_t op_bpl(_cpu* cpu) {
-    if (!get_flag(cpu, NEGATIVE))
+    if (!get_flag(cpu, NEGATIVE)) {
         branch(cpu);
+    }
+
 	return 0;
 }
 
@@ -382,14 +393,18 @@ uint8_t op_brk(_cpu* cpu) {
 }
 
 uint8_t op_bvc(_cpu* cpu) {
-    if (!get_flag(cpu, OVERFLOW))
+    if (!get_flag(cpu, OVERFLOW)) {
         branch(cpu);
+    }
+
 	return 0;
 }
 
 uint8_t op_bvs(_cpu* cpu) {
-    if (get_flag(cpu, OVERFLOW))
+    if (get_flag(cpu, OVERFLOW)) {
         branch(cpu);
+    }
+
 	return 0;
 }
 
