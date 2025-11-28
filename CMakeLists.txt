@@ -29,8 +29,9 @@ add_executable(cnes
 )
 
 target_include_directories(cnes PRIVATE
-    external/
+    external/fonts
     external/imgui
+    external/glad/include
 )
 
 set_property(TARGET cnes PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
@@ -48,13 +49,11 @@ if (MSVC)
 else()
     target_compile_options(cnes PRIVATE
         -Wall
-        $<$<CONFIG:Debug>:-O2>
-        $<$<CONFIG:Debug>:-g>
+        $<$<CONFIG:Debug>:-O0>
+        $<$<CONFIG:Debug>:-g3>
         $<$<CONFIG:Debug>:-fsanitize=address>
         $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
         $<$<CONFIG:Debug>:-fno-optimize-sibling-calls>
-        $<$<CONFIG:Debug>:-DNES_PROFILING=1>
-        $<$<CONFIG:Debug>:-pg>
         $<$<CONFIG:Release>:-O3>
         $<$<CONFIG:Release>:-DNDEBUG>
         $<$<CONFIG:Release>:-march=native>
@@ -66,7 +65,6 @@ endif()
 
 target_link_options(cnes PRIVATE
     $<$<CONFIG:Debug>:-fsanitize=address>
-    $<$<CONFIG:Debug>:-pg>
     $<$<CONFIG:Release>:-flto>
 )
 
@@ -74,13 +72,19 @@ file(GLOB IMGUI_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends/*.cpp
 )
-
 add_library(imgui STATIC ${IMGUI_SRC})
 target_include_directories(imgui PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
 )
 target_link_libraries(imgui PUBLIC SDL3::SDL3)
+
+add_library(glad STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/glad/src/gl.c
+)
+target_include_directories(glad PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/glad/include
+)
+target_link_libraries(cnes PRIVATE glad)
 
 set_property(TARGET cnes PROPERTY LINKER_LANGUAGE CXX)
 target_link_libraries(cnes PRIVATE SDL3::SDL3 imgui m)

@@ -100,9 +100,7 @@ int main(int argc, char **argv) {
         uint64_t frame_start = SDL_GetPerformanceCounter();
 
         nes_clock(&nes);
-        gui_draw(&gui);
-
-        uint64_t frame_end = SDL_GetPerformanceCounter();
+        uint64_t frame_end = gui_draw(&gui);
 
         double frame_time = (double)(frame_end - frame_start) / (double)perf_freq;
         double interval = 0.0;
