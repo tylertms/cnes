@@ -160,12 +160,17 @@ jobs:
         run: |
           VERSION="${{ github.event.inputs.version }}"
           TAG="v$VERSION"
+
           git fetch --tags
-          if git rev-parse "$TAG" >/dev/null 2>&1; then exit 1; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "$TAG"
-          git push origin "$TAG"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Continuing without creating a new one."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
