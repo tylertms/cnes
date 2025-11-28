@@ -20,6 +20,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache SDL3
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/_deps/sdl3-src
+            build/_deps/sdl3-build
+          key: ${{ runner.os }}-sdl3-${{ hashFiles('CMakeLists.txt') }}
+
       - name: Install Dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
