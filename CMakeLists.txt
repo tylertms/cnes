@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC ON  CACHE BOOL "" FORCE)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -119,6 +121,5 @@ target_include_directories(imgui PUBLIC
 )
 target_link_libraries(imgui PUBLIC SDL3::SDL3)
 
-
 set_property(TARGET cnes PROPERTY LINKER_LANGUAGE CXX)
-target_link_libraries(cnes PRIVATE SDL3::SDL3 imgui m)
+target_link_libraries(cnes PRIVATE imgui)
