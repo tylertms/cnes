@@ -209,7 +209,7 @@ int gui_init(_gui* gui, char* file) {
     int width = 256*  3;
     int height = 240*  3;
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         return 1;
     }
