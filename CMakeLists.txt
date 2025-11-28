@@ -98,8 +98,6 @@ else()
         $<$<CONFIG:Debug>:-fno-optimize-sibling-calls>
         $<$<CONFIG:Release>:-O3>
         $<$<CONFIG:Release>:-DNDEBUG>
-        $<$<CONFIG:Release>:-march=native>
-        $<$<CONFIG:Release>:-mtune=native>
         $<$<CONFIG:Release>:-fstrict-aliasing>
         $<$<CONFIG:Release>:-ffast-math>
     )
