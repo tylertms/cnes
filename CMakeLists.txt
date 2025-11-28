@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
 include(FetchContent)
 FetchContent_Declare(
     SDL3
@@ -14,7 +15,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(SDL3)
 
-file(GLOB MAPPERS "${CMAKE_CURRENT_SOURCE_DIR}/src/mapper/*.c")
+
+file(GLOB MAPPERS "${CMAKE_CURRENT_SOURCE_DIR}/src/mappers/*.c")
 
 add_executable(cnes
     src/apu.c
@@ -28,10 +30,48 @@ add_executable(cnes
     ${MAPPERS}
 )
 
+
+set(NES_SHADER_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+set(NES_SHADER_GEN_DIR ${NES_SHADER_SRC_DIR}/generated)
+
+set(NES_VERT_SRC ${NES_SHADER_SRC_DIR}/nes.vert)
+set(NES_FRAG_SRC ${NES_SHADER_SRC_DIR}/nes.frag)
+
+set(NES_VERT_SPV_HDR ${NES_SHADER_GEN_DIR}/nes_vert_spv.h)
+set(NES_FRAG_SPV_HDR ${NES_SHADER_GEN_DIR}/nes_frag_spv.h)
+set(NES_VERT_MSL_HDR ${NES_SHADER_GEN_DIR}/nes_vert_msl.h)
+set(NES_FRAG_MSL_HDR ${NES_SHADER_GEN_DIR}/nes_frag_msl.h)
+
+add_custom_command(
+    OUTPUT
+        ${NES_VERT_SPV_HDR}
+        ${NES_FRAG_SPV_HDR}
+        ${NES_VERT_MSL_HDR}
+        ${NES_FRAG_MSL_HDR}
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tools/build_shaders.sh
+    DEPENDS
+        ${NES_VERT_SRC}
+        ${NES_FRAG_SRC}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    VERBATIM
+)
+
+add_custom_target(nes_shaders
+    DEPENDS
+        ${NES_VERT_SPV_HDR}
+        ${NES_FRAG_SPV_HDR}
+        ${NES_VERT_MSL_HDR}
+        ${NES_FRAG_MSL_HDR}
+)
+
+add_dependencies(cnes nes_shaders)
+
+
 target_include_directories(cnes PRIVATE
     external/fonts
     external/imgui
-    external/glad/include
+    external/
+    ${NES_SHADER_GEN_DIR}
 )
 
 set_property(TARGET cnes PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
@@ -68,6 +108,7 @@ target_link_options(cnes PRIVATE
     $<$<CONFIG:Release>:-flto>
 )
 
+
 file(GLOB IMGUI_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends/*.cpp
@@ -78,13 +119,6 @@ target_include_directories(imgui PUBLIC
 )
 target_link_libraries(imgui PUBLIC SDL3::SDL3)
 
-add_library(glad STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/glad/src/gl.c
-)
-target_include_directories(glad PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/glad/include
-)
-target_link_libraries(cnes PRIVATE glad)
 
 set_property(TARGET cnes PROPERTY LINKER_LANGUAGE CXX)
 target_link_libraries(cnes PRIVATE SDL3::SDL3 imgui m)

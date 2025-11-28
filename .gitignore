@@ -1,5 +1,6 @@
 build/
 roms/
+tools/shadercross/
 
 .DS_Store
 imgui.ini
