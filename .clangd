@@ -1,2 +1,5 @@
 CompileFlags:
-    Add: [-I../build/_deps/sdl3-src/include]
+  Add:
+    - -I../build/_deps/sdl3-src/include
+    - -I../external
+    - -I../external/imgui

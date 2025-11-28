@@ -1,4 +1,5 @@
-build
-roms
+build/
+roms/
 
 .DS_Store
+imgui.ini

@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.13)
-project(cnes LANGUAGES C)
+project(cnes LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -26,6 +28,11 @@ add_executable(cnes
     ${MAPPERS}
 )
 
+target_include_directories(cnes PRIVATE
+    external/
+    external/imgui
+)
+
 set_property(TARGET cnes PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
 set(CMAKE_OPTIMIZE_DEPENDENCIES_RELEASE TRUE)
 
@@ -41,10 +48,9 @@ if (MSVC)
 else()
     target_compile_options(cnes PRIVATE
         -Wall
-        -Wextra
-        -Wpedantic
         $<$<CONFIG:Debug>:-O2>
         $<$<CONFIG:Debug>:-g>
+        $<$<CONFIG:Debug>:-fsanitize=address>
         $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
         $<$<CONFIG:Debug>:-fno-optimize-sibling-calls>
         $<$<CONFIG:Debug>:-DNES_PROFILING=1>
@@ -59,8 +65,22 @@ else()
 endif()
 
 target_link_options(cnes PRIVATE
+    $<$<CONFIG:Debug>:-fsanitize=address>
     $<$<CONFIG:Debug>:-pg>
     $<$<CONFIG:Release>:-flto>
 )
 
-target_link_libraries(cnes PRIVATE SDL3::SDL3 m)
+file(GLOB IMGUI_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/backends/*.cpp
+)
+
+add_library(imgui STATIC ${IMGUI_SRC})
+target_include_directories(imgui PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/external
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
+)
+target_link_libraries(imgui PUBLIC SDL3::SDL3)
+
+set_property(TARGET cnes PROPERTY LINKER_LANGUAGE CXX)
+target_link_libraries(cnes PRIVATE SDL3::SDL3 imgui m)
