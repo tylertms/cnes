@@ -335,6 +335,12 @@ void dmc_cpu_write(_apu* apu, uint16_t addr, uint8_t data) {
             apu->dmc.loop = (data & 0x40) >> 6;
             apu->dmc.frequency = (data & 0x0F) >> 0;
             apu->dmc.timer = dmc_period[apu->dmc.frequency];
+
+            if (!apu->dmc.irq_enable) {
+                apu->dmc.irq_pending = 0;
+            } else if (apu->dmc.bytes_remaining == 0) {
+                apu->dmc.irq_pending = 1;
+            }
             break;
 
         case 0x4011:

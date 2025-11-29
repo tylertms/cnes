@@ -58,9 +58,6 @@ void nes_clock(_nes* nes) {
 
         apu_clock(&nes->apu);
 
-        nes->cpu.irq_pending = (nes->apu.frame_counter_irq || nes->apu.dmc.irq_pending) ||
-                (nes->cart.mapper.irq_pending(&nes->cart));
-
         if (nes->apu.dmc.dma_active) {
             if (--nes->apu.dmc.dma_cycles_left == 0) {
                 dmc_dma_complete(&nes->apu);
@@ -86,6 +83,9 @@ void nes_clock(_nes* nes) {
                 }
             }
         } else {
+            nes->cpu.irq_pending = (nes->apu.frame_counter_irq || nes->apu.dmc.irq_pending) ||
+                    (nes->cart.mapper.irq_pending(&nes->cart));
+
             cpu_clock(&nes->cpu);
         }
 
