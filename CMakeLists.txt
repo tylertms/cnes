@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(CNES_BUILD_SHADERS "Rebuild shaders from source" ON)
+
 set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC ON  CACHE BOOL "" FORCE)
 
@@ -16,7 +18,6 @@ FetchContent_Declare(
     GIT_TAG release-3.2.x
 )
 FetchContent_MakeAvailable(SDL3)
-
 
 file(GLOB MAPPERS "${CMAKE_CURRENT_SOURCE_DIR}/src/mappers/*.c")
 
@@ -44,29 +45,43 @@ set(NES_FRAG_SPV_HDR ${NES_SHADER_GEN_DIR}/nes_frag_spv.h)
 set(NES_VERT_MSL_HDR ${NES_SHADER_GEN_DIR}/nes_vert_msl.h)
 set(NES_FRAG_MSL_HDR ${NES_SHADER_GEN_DIR}/nes_frag_msl.h)
 
-add_custom_command(
-    OUTPUT
+if (CNES_BUILD_SHADERS)
+    # Dev / local builds: regenerate shaders from GLSL
+    add_custom_command(
+        OUTPUT
+            ${NES_VERT_SPV_HDR}
+            ${NES_FRAG_SPV_HDR}
+            ${NES_VERT_MSL_HDR}
+            ${NES_FRAG_MSL_HDR}
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tools/build_shaders.sh
+        DEPENDS
+            ${NES_VERT_SRC}
+            ${NES_FRAG_SRC}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        VERBATIM
+    )
+
+    add_custom_target(shaders
+        DEPENDS
+            ${NES_VERT_SPV_HDR}
+            ${NES_FRAG_SPV_HDR}
+            ${NES_VERT_MSL_HDR}
+            ${NES_FRAG_MSL_HDR}
+    )
+
+    add_dependencies(cnes shaders)
+else()
+    foreach(hdr IN ITEMS
         ${NES_VERT_SPV_HDR}
         ${NES_FRAG_SPV_HDR}
         ${NES_VERT_MSL_HDR}
         ${NES_FRAG_MSL_HDR}
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tools/build_shaders.sh
-    DEPENDS
-        ${NES_VERT_SRC}
-        ${NES_FRAG_SRC}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    VERBATIM
-)
-
-add_custom_target(nes_shaders
-    DEPENDS
-        ${NES_VERT_SPV_HDR}
-        ${NES_FRAG_SPV_HDR}
-        ${NES_VERT_MSL_HDR}
-        ${NES_FRAG_MSL_HDR}
-)
-
-add_dependencies(cnes nes_shaders)
+    )
+        if (NOT EXISTS "${hdr}")
+            message(FATAL_ERROR "CNES_BUILD_SHADERS=OFF but missing pre-generated shader header: ${hdr}")
+        endif()
+    endforeach()
+endif()
 
 
 target_include_directories(cnes PRIVATE
@@ -111,7 +126,6 @@ target_link_options(cnes PRIVATE
 target_compile_definitions(cnes PRIVATE
     CMAKE_BUILD_TYPE_STR="$<CONFIG>"
 )
-
 
 file(GLOB IMGUI_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui/*.cpp
