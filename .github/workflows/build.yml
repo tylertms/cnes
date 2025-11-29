@@ -102,13 +102,13 @@ jobs:
       - name: Build (MacOS/Linux)
         if: matrix.os != 'windows-latest'
         run: |
-          cmake --build build --config Release --parallel -- VERBOSE=1
+          cmake --build build --config Release --parallel
 
       - name: Build (Windows)
         if: matrix.os == 'windows-latest'
         shell: msys2 {0}
         run: |
-          cmake --build build --config Release --parallel -- VERBOSE=1
+          cmake --build build --config Release --parallel
 
       - name: Package (MacOS/Linux)
         if: matrix.os != 'windows-latest'
