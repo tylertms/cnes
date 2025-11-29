@@ -27,11 +27,11 @@ void mmc1_commit(_cart* cart, uint16_t addr) {
         mmc1->control = value;
         mmc1_apply_control(cart, mmc1);
     } else if (0xA000 <= addr && addr <= 0xBFFF) {
-        mmc1->chr_bank0 = value;
+        mmc1->chr_bank0 = value & 0x1F;
     } else if (0xC000 <= addr && addr <= 0xDFFF) {
-        mmc1->chr_bank1 = value;
+        mmc1->chr_bank1 = value & 0x1F;
     } else if (0xE000 <= addr && addr <= 0xFFFF) {
-        mmc1->prg_bank = value & 0x0F;
+        mmc1->prg_bank = value & 0x1F;
     }
 
     mmc1->load = 0;
@@ -64,20 +64,19 @@ uint8_t map_cpu_read_001(_cart* cart, uint16_t addr) {
 
     if (addr >= 0x6000 && addr <= 0x7FFF) {
         if (cart->prg_ram.size) {
-            uint16_t mask = (uint16_t)(cart->prg_ram.size - 1);
-            uint16_t off = (addr - 0x6000) & mask;
+            uint32_t mask = cart->prg_ram.size - 1;
+            uint32_t off = (addr - 0x6000) & mask;
             data = cart->prg_ram.data[off];
         }
     } else if (0x8000 <= addr && addr <= 0xFFFF) {
         uint8_t mode = (mmc1->control >> 2) & 3;
         uint32_t bank = 0;
-        uint16_t inner = (addr - 0x8000) & 0x3FFF;
-        uint8_t bank_mask = (uint8_t)(cart->prg_rom_banks - 1);
+        uint32_t bank_mask = (cart->prg_rom.size >> 14) - 1;
 
         switch (mode) {
             case 0:
             case 1:
-                bank = (uint32_t)(mmc1->prg_bank & ~1);
+                bank = (uint32_t)(mmc1->prg_bank & 0x1E);
                 if (addr >= 0xC000) bank++;
                 break;
 
@@ -86,15 +85,14 @@ uint8_t map_cpu_read_001(_cart* cart, uint16_t addr) {
                 break;
 
             default:
-                bank = (addr < 0xC000) ? (uint32_t)mmc1->prg_bank : (uint32_t)(cart->prg_rom_banks - 1);
+                bank = (addr < 0xC000) ? (uint32_t)mmc1->prg_bank : bank_mask;
                 break;
         }
 
         bank &= bank_mask;
 
-        uint32_t off = (bank << 14) | inner;
-        uint32_t rom_mask = cart->prg_rom.size - 1;
-        off &= rom_mask;
+        uint32_t off = (bank << 14) | (addr & 0x3FFF);
+        off &= (cart->prg_rom.size - 1);
 
         data = cart->prg_rom.data[off];
     }
@@ -107,8 +105,8 @@ void map_cpu_write_001(_cart* cart, uint16_t addr, uint8_t data) {
 
     if (addr >= 0x6000 && addr <= 0x7FFF) {
         if (cart->prg_ram.size) {
-            uint16_t mask = (uint16_t)(cart->prg_ram.size - 1);
-            uint16_t off = (addr - 0x6000) & mask;
+            uint32_t mask = cart->prg_ram.size - 1;
+            uint32_t off = (addr - 0x6000) & mask;
             cart->prg_ram.data[off] = data;
         }
     } else if (0x8000 <= addr && addr <= 0xFFFF) {
@@ -139,7 +137,7 @@ uint8_t map_ppu_read_001(_cart* cart, uint16_t addr) {
         uint16_t inner;
 
         if (!mode) {
-            uint8_t bank = mmc1->chr_bank0 & ~1;
+            uint8_t bank = mmc1->chr_bank0 & 0x1E;
             base = (uint32_t)bank << 12;
             inner = addr & 0x1FFF;
         } else {
@@ -172,7 +170,7 @@ void map_ppu_write_001(_cart* cart, uint16_t addr, uint8_t data) {
         uint16_t inner;
 
         if (!mode) {
-            uint8_t bank = mmc1->chr_bank0 & ~1;
+            uint8_t bank = mmc1->chr_bank0 & 0x1E;
             base = (uint32_t)bank << 12;
             inner = addr & 0x1FFF;
         } else {
