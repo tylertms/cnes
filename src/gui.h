@@ -21,11 +21,13 @@ typedef struct _gui {
     SDL_GPUGraphicsPipeline* nes_pipeline;
 
     uint32_t* pixels;
+    float menu_height;
 
     _Bool show_settings;
     _Bool quit;
 
     ImGuiContext* im_ctx;
+    ImFont *nes_font;
 } _gui;
 
 uint8_t gui_init(_gui* gui, char* file);
