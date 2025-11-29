@@ -7,6 +7,9 @@
 #define NES_ALL_HMAX    261
 #define NES_PIXELS (NES_W * NES_H)
 
+#define NMI_SIGNAL_LATENCY  14
+#define NMI_LATCH_THRESHOLD 12
+
 typedef struct _cpu _cpu;
 typedef struct _cart _cart;
 typedef struct _gui _gui;
@@ -42,7 +45,6 @@ typedef struct _ppu {
     uint8_t data_buffer;
 
     uint8_t ppumask_render;
-    int8_t ppumask_delay;
 
     uint16_t vram_addr;
     uint16_t tram_addr;
@@ -73,7 +75,11 @@ typedef struct _ppu {
     uint8_t sprite_0_rendered;
 
     uint8_t odd_frame;
-    uint8_t nmi_line;
+
+    uint8_t nmi_previous;
+    uint8_t nmi_delay;
+    uint8_t nmi_forced;
+    uint8_t suppress_vbl_flag;
 
     _cpu* p_cpu;
     _cart* p_cart;
@@ -163,7 +169,8 @@ void transfer_addr_x(_ppu* ppu);
 void transfer_addr_y(_ppu* ppu);
 void load_bgrnd_shifters(_ppu* ppu);
 void update_shifters(_ppu* ppu);
-void ppu_update_nmi(_ppu *ppu);
+void ppu_update_nmi_state(_ppu *ppu);
+
 uint32_t get_color(_ppu* ppu, uint8_t palette, uint8_t emphasis, uint8_t pixel);
 
 uint8_t physical_nametable(_cart* cart, uint8_t logical);

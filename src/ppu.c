@@ -4,6 +4,7 @@
 #include "gui.h"
 #include "mapper.h"
 #include "palette.h"
+#include <string.h>
 
 static inline void ppu_bus_set(_ppu *ppu, uint8_t value) {
     ppu->ppudata = value;
@@ -20,22 +21,34 @@ static inline void ppu_bus_decay(_ppu *ppu) {
 }
 
 static inline uint8_t render_enabled(_ppu* ppu) {
-    return ppu->ppumask_render & (BGRND_EN | SPRITE_EN);
+    return ppu->ppumask & (BGRND_EN | SPRITE_EN);
 }
 
 static inline uint8_t bgrnd_enabled(_ppu* ppu) {
-    return ppu->ppumask_render & BGRND_EN;
+    return ppu->ppumask & BGRND_EN;
 }
 
 static inline uint8_t sprite_enabled(_ppu* ppu) {
-    return ppu->ppumask_render & SPRITE_EN;
+    return ppu->ppumask & SPRITE_EN;
 }
 
 uint8_t ppu_clock(_ppu* ppu) {
     ppu_bus_decay(ppu);
 
-    if (ppu->ppumask_delay > 0 && --ppu->ppumask_delay == 0) {
-        ppu->ppumask_render = ppu->ppumask;
+    if (ppu->nmi_delay > 0) {
+        ppu->nmi_delay--;
+
+        if (ppu->nmi_delay == NMI_LATCH_THRESHOLD && (ppu->ppuctrl & NMI_EN) && (ppu->ppustatus & VBLANK)) {
+             ppu->nmi_forced = 1;
+        }
+
+        if (ppu->nmi_delay == 0) {
+            uint8_t active = (ppu->ppuctrl & NMI_EN) && (ppu->ppustatus & VBLANK);
+            if (ppu->p_cpu && (active || ppu->nmi_forced)) {
+                ppu->p_cpu->nmi_pending = 1;
+                ppu->nmi_forced = 0;
+            }
+        }
     }
 
     uint8_t frame_complete = 0x00;
@@ -50,16 +63,24 @@ uint8_t ppu_clock(_ppu* ppu) {
 
     if (pre_render_scanline && cycle == 1) {
         ppu->ppustatus &= ~(VBLANK | SPRITE_0_HIT | SPRITE_OVERFLOW);
-        ppu_update_nmi(ppu);
+        ppu->suppress_vbl_flag = 0;
+        ppu->nmi_forced = 0;
+        ppu_update_nmi_state(ppu);
 
         memset(ppu->sprite_pattern_low, 0x00, sizeof(ppu->sprite_pattern_low));
         memset(ppu->sprite_pattern_high, 0x00, sizeof(ppu->sprite_pattern_high));
     }
 
     if (scanline == 241 && cycle == 1) {
-        ppu->ppustatus |= VBLANK;
+        if (ppu->suppress_vbl_flag) {
+            ppu->suppress_vbl_flag = 0;
+        } else {
+            ppu->ppustatus |= VBLANK;
+            ppu_update_nmi_state(ppu);
+        }
         frame_complete = 0x01;
-        ppu_update_nmi(ppu);
+    } else if (ppu->suppress_vbl_flag && (scanline == 241 && cycle > 1)) {
+        ppu->suppress_vbl_flag = 0;
     }
 
     if (render_or_prerender && rendering && cycle == 260 && ppu->p_cart) {
@@ -231,7 +252,6 @@ uint8_t ppu_clock(_ppu* ppu) {
         bgrnd_pixel = 0;
     }
 
-
     uint8_t sprite_pixel = 0x00;
     uint8_t sprite_palette = 0x00;
     uint8_t sprite_priority = 0x00;
@@ -240,7 +260,7 @@ uint8_t ppu_clock(_ppu* ppu) {
         ppu->sprite_0_rendered = 0;
 
         for (uint8_t i = 0; i < ppu->sprite_count; i++) {
-            if (!ppu->sprites[i].pos_x) {
+            if (ppu->sprites[i].pos_x == 0) {
                 uint8_t sp_lo = !!(ppu->sprite_pattern_low[i] & 0x80);
                 uint8_t sp_hi = !!(ppu->sprite_pattern_high[i] & 0x80);
                 sprite_pixel = (uint8_t)((sp_hi << 1) | sp_lo);
@@ -314,16 +334,12 @@ uint8_t ppu_clock(_ppu* ppu) {
 
     ppu->cycle++;
 
-    uint8_t render_en_skip = ppu->ppumask & (BGRND_EN | SPRITE_EN);
-    if (pre_render_scanline &&
-        cycle == 339 &&
-        render_en_skip &&
-        ppu->odd_frame) {
+    if (pre_render_scanline && cycle == 339 &&
+        render_enabled(ppu) && ppu->odd_frame) {
+        ppu->cycle = NES_ALL_WMAX + 1;
+    }
 
-        ppu->cycle = 0;
-        ppu->scanline = 0;
-        ppu->odd_frame = 0;
-    } else if (ppu->cycle > NES_ALL_WMAX) {
+    if (ppu->cycle > NES_ALL_WMAX) {
         ppu->cycle = 0;
 
         if (++ppu->scanline > NES_ALL_HMAX) {
@@ -411,20 +427,32 @@ uint8_t ppustatus_cpu_read(_ppu* ppu) {
     uint8_t data = (ppu->ppustatus & 0xE0) | (ppu->ppudata & 0x1F);
 
     if (ppu->scanline == 241) {
-        if (ppu->cycle == 1 || ppu->cycle == 2) {
+        if (ppu->cycle == 1) {
             data &= ~VBLANK;
+            ppu->suppress_vbl_flag = 1;
+            if (ppu->nmi_delay > 0) ppu->nmi_delay = 0;
+            ppu->nmi_forced = 0;
+        } else if (ppu->cycle == 2) {
+            data |= VBLANK;
             ppu->ppustatus &= ~VBLANK;
-
-            if (ppu->p_cpu) {
-                ppu->p_cpu->nmi_pending = 0;
+            if (ppu->nmi_delay > 0) ppu->nmi_delay = 0;
+            ppu->nmi_forced = 0;
+        } else if (ppu->cycle == 3) {
+            data |= VBLANK;
+            ppu->ppustatus &= ~VBLANK;
+        } else {
+            ppu->ppustatus &= ~VBLANK;
+            if (!ppu->nmi_forced && ppu->nmi_delay > 0) {
+                 ppu->nmi_delay = 0;
             }
         }
+    } else {
+        ppu->ppustatus &= ~VBLANK;
+        if (!ppu->nmi_forced && ppu->nmi_delay > 0) ppu->nmi_delay = 0;
     }
 
-    ppu->ppustatus &= ~VBLANK;
     ppu->write_toggle = 0;
-
-    ppu_update_nmi(ppu);
+    ppu_update_nmi_state(ppu);
     ppu_bus_set(ppu, data);
 
     return data;
@@ -461,12 +489,11 @@ uint8_t ppudata_cpu_read(_ppu* ppu) {
 void ppuctrl_cpu_write(_ppu* ppu, uint8_t data) {
     ppu->ppuctrl = data;
     ppu->tram_addr = (ppu->tram_addr & 0xF3FF) | ((data & 0x03) << 10);
-    ppu_update_nmi(ppu);
+    ppu_update_nmi_state(ppu);
 }
 
 void ppumask_cpu_write(_ppu* ppu, uint8_t data) {
     ppu->ppumask = data;
-    ppu->ppumask_delay = 3;
 }
 
 void oamaddr_cpu_write(_ppu* ppu, uint8_t data) {
@@ -604,18 +631,24 @@ void update_shifters(_ppu* ppu) {
     }
 }
 
-void ppu_update_nmi(_ppu *ppu) {
-    uint8_t vblank_flag = (ppu->ppustatus & VBLANK) != 0;
-    uint8_t nmi_output = (ppu->ppuctrl & NMI_EN) != 0;
+void ppu_update_nmi_state(_ppu *ppu) {
+    uint8_t vblank = (ppu->ppustatus & VBLANK) != 0;
+    uint8_t enabled = (ppu->ppuctrl & NMI_EN) != 0;
 
-    uint8_t nmi_prev = ppu->nmi_line;
-    uint8_t nmi_now = (vblank_flag && nmi_output);
+    uint8_t nmi_now = vblank && enabled;
 
-    ppu->nmi_line = nmi_now;
-
-    if (!nmi_prev && nmi_now) {
-        ppu->p_cpu->nmi_pending = 1;
+    if (!ppu->nmi_previous && nmi_now) {
+        ppu->nmi_delay = NMI_SIGNAL_LATENCY;
+        ppu->nmi_forced = 0;
     }
+
+    if (!nmi_now) {
+        if (!ppu->nmi_forced) {
+            ppu->nmi_delay = 0;
+        }
+    }
+
+    ppu->nmi_previous = nmi_now;
 }
 
 uint32_t get_color(_ppu* ppu, uint8_t palette, uint8_t emphasis, uint8_t pixel) {
