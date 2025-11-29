@@ -90,19 +90,19 @@ void apu_clock(_apu* apu) {
         int gate_noise = apu->status.enable_noise && apu->noise.length > 0 &&
                          ((apu->noise.constant_volume ? apu->noise.volume_env : apu->noise.env) > 0);
 
-        int gate_dmc = apu->status.enable_dmc && !apu->dmc.silence;
+        // int gate_dmc = apu->status.enable_dmc && !apu->dmc.silence;
 
         apu->pulse1_gain = ramp_gain(apu->pulse1_gain, gate_pulse1, &apu->pulse1_ramp);
         apu->pulse2_gain = ramp_gain(apu->pulse2_gain, gate_pulse2, &apu->pulse2_ramp);
         apu->triangle_gain = ramp_gain(apu->triangle_gain, gate_triangle, &apu->triangle_ramp);
         apu->noise_gain = ramp_gain(apu->noise_gain, gate_noise, &apu->noise_ramp);
-        apu->dmc_gain = ramp_gain(apu->dmc_gain, gate_dmc, &apu->dmc_ramp);
+        // apu->dmc_gain = ramp_gain(apu->dmc_gain, gate_dmc, &apu->dmc_ramp);
 
         float s_pulse1 = raw_pulse1 * apu->pulse1_gain;
         float s_pulse2 = raw_pulse2 * apu->pulse2_gain;
         float s_triangle = raw_triangle * apu->triangle_gain;
         float s_noise = raw_noise * apu->noise_gain;
-        float s_dmc = raw_dmc * apu->dmc_gain;
+        float s_dmc = (float)raw_dmc; // * apu->dmc_gain;
 
         float sample = mix(s_pulse1, s_pulse2, s_triangle, s_noise, s_dmc);
         sample = dc_block(apu, sample);
