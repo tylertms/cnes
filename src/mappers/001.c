@@ -67,6 +67,10 @@ uint8_t map_cpu_read_001(_cart* cart, uint16_t addr) {
             uint32_t mask = cart->prg_ram.size - 1;
             uint32_t off = (addr - 0x6000) & mask;
             data = cart->prg_ram.data[off];
+        } else if (cart->prg_nvram.size) {
+            uint32_t mask = cart->prg_nvram.size - 1;
+            uint32_t off = (addr - 0x6000) & mask;
+            data = cart->prg_nvram.data[off];
         }
     } else if (0x8000 <= addr && addr <= 0xFFFF) {
         uint8_t mode = (mmc1->control >> 2) & 3;
@@ -108,6 +112,10 @@ void map_cpu_write_001(_cart* cart, uint16_t addr, uint8_t data) {
             uint32_t mask = cart->prg_ram.size - 1;
             uint32_t off = (addr - 0x6000) & mask;
             cart->prg_ram.data[off] = data;
+        } else if (cart->prg_nvram.size) {
+            uint32_t mask = cart->prg_nvram.size - 1;
+            uint32_t off = (addr - 0x6000) & mask;
+            cart->prg_nvram.data[off] = data;
         }
     } else if (0x8000 <= addr && addr <= 0xFFFF) {
         if (data & 0x80) {
