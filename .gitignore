@@ -1,6 +1,6 @@
 build/
 roms/
-nes-test-roms/
+test/
 tools/shadercross/
 
 .DS_Store
