@@ -619,7 +619,7 @@ void update_shifters(_ppu* ppu) {
     }
 
     uint8_t sprite_visible = ppu->cycle >= 1 && ppu->cycle <= (NES_W + 1);
-    if (sprite_enabled(ppu) && sprite_visible) {
+    if (render_enabled(ppu) && sprite_visible) {
         for (uint8_t i = 0; i < ppu->sprite_count; i++) {
             if (ppu->sprites[i].pos_x) {
                 ppu->sprites[i].pos_x--;

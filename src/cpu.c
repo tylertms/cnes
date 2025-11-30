@@ -31,7 +31,7 @@ void cpu_clock(_cpu* cpu) {
     cpu->branch_irq_latch = 0;
     cpu->branch_page_cross = 0;
 
-    if (cpu->irq_pending) {
+    if (irq) {
         if (cpu->irq_state == IRQ_FORCE_NEXT) {
             cpu->irq_state = IRQ_NORMAL;
             cpu_irq(cpu);
