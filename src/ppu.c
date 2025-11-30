@@ -159,7 +159,7 @@ uint8_t ppu_clock(_ppu* ppu) {
 
             uint16_t next_scanline = (uint16_t)((scanline + 1) % (NES_ALL_HMAX + 1));
 
-            if (rendering && next_scanline < NES_H && scanline < NES_H) {
+            if (rendering && next_scanline <= NES_H && scanline < NES_H) {
                 int16_t eval_scanline = (pre_render_scanline ? 0 : (int16_t)scanline);
                 uint8_t oam_entry = 0;
 
