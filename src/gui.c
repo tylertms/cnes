@@ -432,10 +432,9 @@ uint64_t gui_draw(_gui *gui, _nes *nes) {
     SDL_GPUTexture *swapchain_tex = NULL;
     uint32_t sw = 0, sh = 0;
     if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmdbuf, gui->window, &swapchain_tex, &sw, &sh) || !swapchain_tex) {
-        SDL_SubmitGPUCommandBuffer(cmdbuf);
-        uint64_t now = SDL_GetPerformanceCounter();
-        record_frame_time(now);
-        return now;
+        SDL_CancelGPUCommandBuffer(cmdbuf);
+        SDL_Delay(16);
+        return SDL_GetPerformanceCounter();
     }
 
     cImGui_ImplSDLGPU3_NewFrame();
@@ -505,6 +504,9 @@ uint64_t gui_draw(_gui *gui, _nes *nes) {
         ui_vp.min_depth = 0.0f;
         ui_vp.max_depth = 1.0f;
         SDL_SetGPUViewport(render_pass, &ui_vp);
+
+        SDL_Rect ui_scissor = {0, 0, (int)sw, (int)sh};
+        SDL_SetGPUScissor(render_pass, &ui_scissor);
 
         cImGui_ImplSDLGPU3_RenderDrawData(draw_data, cmdbuf, render_pass);
         SDL_EndGPURenderPass(render_pass);
