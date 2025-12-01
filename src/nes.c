@@ -30,9 +30,7 @@ uint8_t nes_init(_nes* nes, char* file, _gui* gui) {
 }
 
 void nes_deinit(_nes* nes) {
-    if ((void*)&nes->apu != NULL) {
-        apu_deinit(&nes->apu);
-    }
+    apu_deinit(&nes->apu);
 
     if (nes->cart.mapper.deinit) {
         nes->cart.mapper.deinit(&nes->cart);

@@ -55,8 +55,14 @@ static bool configure_present_mode(_gui *gui) {
     const SDL_GPUSwapchainComposition comp = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
     const SDL_GPUPresentMode modes[] = {
         SDL_GPU_PRESENTMODE_MAILBOX,
+        #ifdef __APPLE__
         SDL_GPU_PRESENTMODE_VSYNC,
-        SDL_GPU_PRESENTMODE_IMMEDIATE
+        SDL_GPU_PRESENTMODE_IMMEDIATE,
+        #else
+        SDL_GPU_PRESENTMODE_IMMEDIATE,
+        SDL_GPU_PRESENTMODE_VSYNC,
+        #endif
+
     };
     const size_t num_modes = sizeof(modes) / sizeof(modes[0]);
     for (size_t i = 0; i < num_modes; ++i) {
@@ -473,6 +479,13 @@ uint64_t gui_draw(_gui *gui, _nes *nes) {
         game_vp.min_depth = 0.0f;
         game_vp.max_depth = 1.0f;
         SDL_SetGPUViewport(render_pass, &game_vp);
+
+        SDL_Rect game_scissor;
+        game_scissor.x = (int)game_vp.x;
+        game_scissor.y = (int)game_vp.y;
+        game_scissor.w = (int)game_vp.w;
+        game_scissor.h = (int)game_vp.h;
+        SDL_SetGPUScissor(render_pass, &game_scissor);
 
         SDL_BindGPUGraphicsPipeline(render_pass, gui->nes_pipeline);
 
