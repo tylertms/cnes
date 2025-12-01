@@ -65,21 +65,18 @@ int main(int argc, char **argv) {
 
     uint64_t perf_freq = SDL_GetPerformanceFrequency();
     double perf_freq_dbl = (double)perf_freq;
-    double target_seconds_per_frame = NES_FRAME_TIME_SEC;
-
     uint64_t next_frame_target = SDL_GetPerformanceCounter();
-    uint64_t last_stats_time = next_frame_target;
 
+#ifdef CNES_STATS
+    uint64_t last_stats_time = next_frame_target;
     uint64_t frame_count_stats = 0;
+#endif
+
     double max_jitter = 0.0;
     double max_frame_time = 0.0;
     double min_frame_time = 1.0;
 
-    uint8_t input_live = 0;
-    uint8_t input_latch = 0;
-
-    printf("Starting emulation loop. Target: %.4f Hz (%.6f ms/frame)\n",
-           NES_REFRESH_RATE, target_seconds_per_frame * 1000.0);
+    uint8_t controller_state = 0;
 
     while (!nes.cpu.halt && !gui.quit) {
         uint64_t now = SDL_GetPerformanceCounter();
@@ -120,8 +117,7 @@ int main(int argc, char **argv) {
 
                 uint8_t mask = get_button_mask(event.key.scancode);
                 if (mask) {
-                    input_live |= mask;
-                    input_latch |= mask;
+                    controller_state |= mask;
                 }
                 break;
             }
@@ -129,7 +125,7 @@ int main(int argc, char **argv) {
             case SDL_EVENT_KEY_UP: {
                 uint8_t mask = get_button_mask(event.key.scancode);
                 if (mask) {
-                    input_live &= ~mask;
+                    controller_state &= ~mask;
                 }
                 break;
             }
@@ -140,9 +136,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        nes.input.controller[0] = input_latch;
-        input_latch = input_live;
-
+        nes.input.controller[0] = controller_state;
 
         uint64_t work_start = SDL_GetPerformanceCounter();
         nes_clock(&nes);
@@ -151,7 +145,6 @@ int main(int argc, char **argv) {
             apu_flush_audio(&nes.apu);
         }
 
-
         gui_draw(&gui, &nes);
 
         uint64_t work_end = SDL_GetPerformanceCounter();
@@ -159,7 +152,6 @@ int main(int argc, char **argv) {
 
         if (frame_work_time > max_frame_time) max_frame_time = frame_work_time;
         if (frame_work_time < min_frame_time) min_frame_time = frame_work_time;
-
 
         double adjustment = 0.0;
 
@@ -182,7 +174,7 @@ int main(int argc, char **argv) {
              next_frame_target = now;
         }
 
-
+#ifdef CNES_STATS
         frame_count_stats++;
         double time_since_stats = (double)(now - last_stats_time) / perf_freq_dbl;
 
@@ -201,6 +193,7 @@ int main(int argc, char **argv) {
             max_frame_time = 0.0;
             min_frame_time = 1.0;
         }
+#endif
     }
 
     nes_deinit(&nes);
