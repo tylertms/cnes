@@ -7,5 +7,5 @@ layout(set = 2, binding = 0) uniform sampler2D u_tex;
 
 void main() {
     vec2 uv = vec2(v_uv.x, 1.0 - v_uv.y);
-    out_color = texture(u_tex, uv).abgr;
+    out_color = vec4(texture(u_tex, uv).bgr, 1.0);
 }
