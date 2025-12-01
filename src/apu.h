@@ -3,9 +3,7 @@
 
 #define CPU_FREQ_NTSC 1789773.0
 #define SAMPLE_RATE 48000.0
-#define APU_BUFFER_SAMPLES 512
-#define APU_RETRY_RELOAD 192
-#define GLOBAL_VOLUME 1.0
+#define APU_MAX_FRAME_SAMPLES 2048
 #define RAMP_SAMPLES 64
 
 #define FC4_STEP1  3728
@@ -67,7 +65,6 @@ typedef struct _noise {
     uint8_t period;
     uint8_t length_counter_load;
 
-
     uint8_t length;
     uint8_t env_start;
     uint8_t env_div;
@@ -128,8 +125,8 @@ typedef struct _apu {
     uint8_t audio_retry;
     _cpu* p_cpu;
 
-    float sample_buffer[APU_BUFFER_SAMPLES];
-    int sample_write;
+    float sample_buffer[APU_MAX_FRAME_SAMPLES];
+    int sample_count;
 
     _pulse pulse1;
     _pulse pulse2;
@@ -143,84 +140,21 @@ typedef struct _apu {
 
     uint8_t apu_divider;
     double sample_acc;
-    double env_acc;
-    double len_sweep_acc;
     int frame_cycle;
 
     float dc_prev_in;
     float dc_prev_out;
-    float lp_prev;
 
     float pulse1_gain, pulse2_gain, triangle_gain, noise_gain, dmc_gain;
     int pulse1_ramp, pulse2_ramp, triangle_ramp, noise_ramp, dmc_ramp;
 } _apu;
 
-static const uint8_t pulse_duty[4] = {
-    0x01, 0x03, 0x0F, 0xFC
-};
-
-static const uint8_t length_table[32] = {
-    10, 254, 20,  2, 40,  4, 80,  6,
-   160,   8, 60, 10, 14, 12, 26, 14,
-    12,  16, 24, 18, 48, 20, 96, 22,
-   192,  24, 72, 26, 16, 28, 32, 30
-};
-
-static const uint8_t triangle_seq[32] = {
-    15, 14, 13, 12, 11, 10,  9,  8,
-     7,  6,  5,  4,  3,  2,  1,  0,
-     0,  1,  2,  3,  4,  5,  6,  7,
-     8,  9, 10, 11, 12, 13, 14, 15
-};
-
-static const uint16_t noise_period[16] = {
-      4,    8,   16,   32,
-     64,   96,  128,  160,
-    202,  254,  380,  508,
-    762, 1016, 2034, 4068
-};
-
-static const uint16_t dmc_period[16] = {
-    428, 380, 340, 320,
-    286, 254, 226, 214,
-    190, 160, 142, 128,
-    106,  84,  72,  54
-};
-
-static inline float release_smooth(float rel, int gate_on) {
-    const float r = 0.995f;
-    return gate_on ? 1.0f : rel * r;
-}
-
-static inline float dc_block(_apu* apu, float x) {
-    float y = x - apu->dc_prev_in + 0.995f * apu->dc_prev_out;
-    apu->dc_prev_in = x;
-    apu->dc_prev_out = y;
-    return y;
-}
-
-static inline float ramp_gain(float current, int gate, int *ramp_counter) {
-    float target = gate ? 1.0f : 0.0f;
-
-    if (*ramp_counter <= 0) {
-        if (current != target) {
-            *ramp_counter = RAMP_SAMPLES;
-        } else {
-            return current;
-        }
-    }
-
-    float step = (target - current) / (float)*ramp_counter;
-    current += step;
-    (*ramp_counter)--;
-
-    return current;
-}
-
 void apu_init(_apu *apu);
 void apu_deinit(_apu *apu);
 void apu_reset(_apu *apu);
 void apu_clock(_apu *apu);
+void apu_flush_audio(_apu *apu);
+
 uint8_t apu_cpu_read(_apu *apu, uint16_t addr);
 void apu_cpu_write(_apu *apu, uint16_t addr, uint8_t data);
 
@@ -229,8 +163,7 @@ void pulse2_cpu_write(_apu *apu, uint16_t addr, uint8_t data);
 void triangle_cpu_write(_apu *apu, uint16_t addr, uint8_t data);
 void noise_cpu_write(_apu *apu, uint16_t addr, uint8_t data);
 void dmc_cpu_write(_apu *apu, uint16_t addr, uint8_t data);
-
-void clock_frame_counter(_apu *apu);
+void dmc_dma_complete(_apu* apu);
 
 void clock_pulse_envelope(_pulse *p);
 void clock_pulse_length(_pulse *p);
@@ -250,6 +183,4 @@ uint8_t sample_noise(_noise *n);
 
 void clock_dmc(_apu *apu);
 uint8_t sample_dmc(_dmc *d);
-void dmc_dma_complete(_apu* apu);
-
-float mix(float pulse1, float pulse2, float triangle, float noise, float dmc);
+void clock_frame_counter(_apu *apu);

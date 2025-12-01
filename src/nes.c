@@ -48,6 +48,7 @@ void nes_reset(_nes* nes) {
 
 void nes_clock(_nes* nes) {
     uint8_t frame_complete = 0;
+
     while (!frame_complete) {
         frame_complete =
             ppu_clock(&nes->ppu) |

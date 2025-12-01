@@ -53,17 +53,13 @@ static void record_frame_time(uint64_t frame_end) {
 
 static bool configure_present_mode(_gui *gui) {
     const SDL_GPUSwapchainComposition comp = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
+
     const SDL_GPUPresentMode modes[] = {
         SDL_GPU_PRESENTMODE_MAILBOX,
-        #ifdef __APPLE__
-        SDL_GPU_PRESENTMODE_VSYNC,
         SDL_GPU_PRESENTMODE_IMMEDIATE,
-        #else
-        SDL_GPU_PRESENTMODE_IMMEDIATE,
-        SDL_GPU_PRESENTMODE_VSYNC,
-        #endif
-
+        SDL_GPU_PRESENTMODE_VSYNC
     };
+
     const size_t num_modes = sizeof(modes) / sizeof(modes[0]);
     for (size_t i = 0; i < num_modes; ++i) {
         SDL_GPUPresentMode mode = modes[i];
@@ -74,6 +70,7 @@ static bool configure_present_mode(_gui *gui) {
             return true;
         }
     }
+
     SDL_Log("Warning: Failed to set preferred present modes, keeping default swapchain parameters!");
     return false;
 }
@@ -338,7 +335,7 @@ uint8_t gui_init(_gui *gui, char *file) {
         return 1;
     }
 
-    configure_present_mode(gui);
+    if (!configure_present_mode(gui)) {}
 
     if (!create_texture(gui)) {
         gui_deinit(gui);
@@ -433,7 +430,6 @@ uint64_t gui_draw(_gui *gui, _nes *nes) {
     uint32_t sw = 0, sh = 0;
     if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmdbuf, gui->window, &swapchain_tex, &sw, &sh) || !swapchain_tex) {
         SDL_CancelGPUCommandBuffer(cmdbuf);
-        SDL_Delay(16);
         return SDL_GetPerformanceCounter();
     }
 
