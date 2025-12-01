@@ -3,7 +3,8 @@
 
 #define CPU_FREQ_NTSC 1789773.0
 #define SAMPLE_RATE 48000.0
-#define APU_BUFFER_SAMPLES 256
+#define APU_BUFFER_SAMPLES 512
+#define APU_RETRY_RELOAD 192
 #define GLOBAL_VOLUME 1.0
 #define RAMP_SAMPLES 64
 
@@ -124,6 +125,7 @@ typedef struct _cpu _cpu;
 
 typedef struct _apu {
     SDL_AudioStream* audio_stream;
+    uint8_t audio_retry;
     _cpu* p_cpu;
 
     float sample_buffer[APU_BUFFER_SAMPLES];

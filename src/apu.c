@@ -4,7 +4,9 @@
 #include <SDL3/SDL_hints.h>
 #include <stdio.h>
 
-void apu_init(_apu* apu) {
+void open_audio_stream(_apu* apu) {
+    if (apu->audio_stream) return;
+
     SDL_AudioSpec spec;
     SDL_zero(spec);
     spec.channels = 1;
@@ -20,10 +22,19 @@ void apu_init(_apu* apu) {
         NULL
     );
 
+    if (apu->audio_stream) {
+        SDL_ResumeAudioStreamDevice(apu->audio_stream);
+    }
+}
+
+void apu_init(_apu* apu) {
+    apu->audio_stream = NULL;
+    apu->audio_retry = 0;
+
+    open_audio_stream(apu);
+
     if (!apu->audio_stream) {
         printf("Failed to open audio stream: %s\n", SDL_GetError());
-    } else {
-        SDL_ResumeAudioStreamDevice(apu->audio_stream);
     }
 }
 
@@ -110,13 +121,21 @@ void apu_clock(_apu* apu) {
         apu->sample_buffer[apu->sample_write++] = sample;
 
         if (apu->sample_write == APU_BUFFER_SAMPLES) {
-            if (!SDL_PutAudioStreamData(
-                apu->audio_stream,
-                apu->sample_buffer,
-                APU_BUFFER_SAMPLES * sizeof(float)
-            )) {
-                printf("ERROR: %s\n", SDL_GetError());
+            if (apu->audio_stream) {
+                if (!SDL_PutAudioStreamData(
+                    apu->audio_stream,
+                    apu->sample_buffer,
+                    APU_BUFFER_SAMPLES * sizeof(float)
+                )) {
+                    printf("ERROR: %s\n", SDL_GetError());
+                }
+            } else {
+                if (apu->audio_retry-- == 0) {
+                    open_audio_stream(apu);
+                    apu->audio_retry = APU_RETRY_RELOAD;
+                }
             }
+
             apu->sample_write = 0;
         }
     }
