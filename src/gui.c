@@ -381,7 +381,7 @@ uint8_t gui_init(_gui *gui, char *file) {
 
     ImFontConfig cfg;
     memset(&cfg, 0, sizeof(ImFontConfig));
-    cfg.FontDataOwnedByAtlas = true;
+    cfg.FontDataOwnedByAtlas = false;
     cfg.OversampleH = 2;
     cfg.OversampleV = 2;
     cfg.GlyphMaxAdvanceX = FLT_MAX;
@@ -529,6 +529,10 @@ uint64_t gui_draw(_gui *gui, _nes *nes) {
 
 void gui_deinit(_gui *gui) {
     if (!gui) return;
+
+    if (gui->gpu_device) {
+        SDL_WaitForGPUIdle(gui->gpu_device);
+    }
 
     if (gui->im_ctx) {
         ImGui_SetCurrentContext(gui->im_ctx);
