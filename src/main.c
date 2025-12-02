@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <SDL3/SDL.h>
 
+#define CNES_STATS
 #define NES_REFRESH_RATE 60.0988138974405
 #define NES_FRAME_TIME_SEC (1.0 / NES_REFRESH_RATE)
 
@@ -72,6 +73,7 @@ int main(int argc, char **argv) {
 #ifdef CNES_STATS
     uint64_t last_stats_time = next_frame_target;
     uint64_t frame_count_stats = 0;
+    uint64_t dropped_frames_stats = 0;
 #endif
 
     double max_jitter = 0.0;
@@ -131,7 +133,20 @@ int main(int argc, char **argv) {
             apu_flush_audio(&nes.apu);
         }
 
-        gui_draw(&gui, &nes);
+        uint64_t current_time = SDL_GetPerformanceCounter();
+        uint64_t frame_deadline = next_frame_target + (uint64_t)(NES_FRAME_TIME_SEC * perf_freq_dbl);
+
+        bool skip_draw = false;
+        if (current_time > frame_deadline) {
+            skip_draw = true;
+#ifdef CNES_STATS
+            dropped_frames_stats++;
+#endif
+        }
+
+        if (!skip_draw) {
+            gui_draw(&gui, &nes);
+        }
 
         uint64_t work_end = SDL_GetPerformanceCounter();
         double frame_work_time = (double)(work_end - work_start) / perf_freq_dbl;
@@ -165,16 +180,20 @@ int main(int argc, char **argv) {
         double time_since_stats = (double)(now - last_stats_time) / perf_freq_dbl;
 
         if (time_since_stats >= 1.0) {
-            double max_jitter_us = max_jitter * 1000000.0;
+            double max_jitter_ms = max_jitter * 1000.0;
             double fps = frame_count_stats / time_since_stats;
             double avg_work = (max_frame_time + min_frame_time) / 2.0 * 1000.0;
 
-            printf("[STATS] FPS: %.2f | Max Jitter: %.2fus | Work: %.2fms | AudioQ: %d B\n",
-                   fps, max_jitter_us, avg_work,
+            printf("[STATS] FPS: %.2f | Drop: %llu | Jitter: %4.2fms | Work: %.2fms | AudioQ: %d B\n",
+                   fps,
+                   (unsigned long long)dropped_frames_stats,
+                   max_jitter_ms,
+                   avg_work,
                    nes.apu.audio_stream ? SDL_GetAudioStreamQueued(nes.apu.audio_stream) : 0);
 
             last_stats_time = now;
             frame_count_stats = 0;
+            dropped_frames_stats = 0;
             max_jitter = 0.0;
             max_frame_time = 0.0;
             min_frame_time = 1.0;
