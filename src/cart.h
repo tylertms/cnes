@@ -34,6 +34,7 @@ typedef struct _mem {
 } _mem;
 
 typedef struct _cart {
+    char* rom_path;
     uint8_t loaded;
 
     _mem prg_rom;
@@ -66,7 +67,7 @@ typedef struct _cart {
     uint8_t expansion_device;
 } _cart;
 
-uint8_t cart_load(_cart* cart, const char* file);
+uint8_t cart_load(_cart* cart);
 void cart_unload(_cart* cart);
 uint8_t parse_ines(_cart* cart, uint8_t header[16]);
 uint8_t parse_nes2(_cart* cart, uint8_t header[16]);

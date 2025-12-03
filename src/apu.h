@@ -149,7 +149,7 @@ typedef struct _apu {
     int pulse1_ramp, pulse2_ramp, triangle_ramp, noise_ramp, dmc_ramp;
 } _apu;
 
-void apu_init(_apu *apu);
+uint8_t apu_init(_apu *apu);
 void apu_deinit(_apu *apu);
 void apu_reset(_apu *apu);
 void apu_clock(_apu *apu);

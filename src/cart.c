@@ -4,8 +4,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-uint8_t cart_load(_cart* cart, const char* file) {
-    FILE* rom = fopen(file, "rb");
+uint8_t cart_load(_cart* cart) {
+    FILE* rom = fopen(cart->rom_path, "rb");
     if (rom == NULL) {
         fprintf(stderr, "ERROR: Failed to open .nes file!\n");
         return 1;
@@ -60,9 +60,6 @@ uint8_t cart_load(_cart* cart, const char* file) {
         else prg_ram_size = cart->prg_ram_banks * 0x2000;
         if (cart->chr_rom_banks == 0) chr_ram_size = 0x2000;
     }
-
-    printf("PRG ROM: 0x%08zX, PRG RAM: 0x%08zX, PRG NVRAM: 0x%08zX\nCHR ROM: 0x%08zX, CHR RAM: 0x%08zX, CHR NVRAM: 0x%08zX\n",
-        prg_rom_size, prg_ram_size, prg_nvram_size, chr_rom_size, chr_ram_size, chr_nvram_size);
 
     if (prg_rom_size) {
         cart->prg_rom = (_mem){

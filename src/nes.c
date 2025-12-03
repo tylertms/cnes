@@ -1,11 +1,12 @@
 #include "nes.h"
 #include "apu.h"
 #include "cpu.h"
-#include "gui.h"
 #include "ppu.h"
 #include <string.h>
+#include <stdlib.h>
 
-uint8_t nes_init(_nes* nes, char* file, _gui* gui) {
+uint8_t nes_init(_nes* nes) {
+    char* rom_path = nes->cart.rom_path;
     memset(nes, 0, sizeof(_nes));
 
     nes->cpu.p_apu = &nes->apu;
@@ -14,19 +15,26 @@ uint8_t nes_init(_nes* nes, char* file, _gui* gui) {
     nes->cpu.p_input = &nes->input;
     nes->apu.p_cpu = &nes->cpu;
     nes->ppu.p_cart = &nes->cart;
-    nes->ppu.p_gui = gui;
     nes->ppu.p_cpu = &nes->cpu;
 
-    apu_init(&nes->apu);
+    nes->cart.rom_path = rom_path;
 
-    if (file) {
-        if (cart_load(&nes->cart, file)) {
+    if (apu_init(&nes->apu)) {
+        return 1;
+    }
+
+    if (ppu_init(&nes->ppu)) {
+        return 1;
+    }
+
+    if (nes->cart.rom_path) {
+        if (cart_load(&nes->cart)) {
             nes->cart.loaded = 0;
             return 1;
         }
 
         nes->cart.loaded = 1;
-        nes_reset(nes);
+        nes_soft_reset(nes);
     }
 
     return 0;
@@ -37,13 +45,19 @@ void nes_deinit(_nes* nes) {
     cart_unload(&nes->cart);
 }
 
-void nes_reset(_nes* nes) {
+void nes_soft_reset(_nes* nes) {
     apu_reset(&nes->apu);
     cpu_reset(&nes->cpu);
 
     _cart* cart = &nes->cart;
     cart->mapper.deinit(cart);
     cart->mapper.init(cart);
+}
+
+void nes_hard_reset(_nes* nes) {
+    nes_deinit(nes);
+    nes_init(nes);
+    nes->hard_reset_pending = 0;
 }
 
 void nes_clock(_nes* nes) {

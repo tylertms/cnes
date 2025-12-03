@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <float.h>
 
 #include "nes_vert_spv.h"
@@ -24,13 +25,15 @@ static bool g_frame_times_filled = false;
 static uint64_t g_last_perf_counter = 0;
 
 static char* game_name(char* path) {
+    if (!path) return "cnes";
+
     char* last_forslash = strrchr(path, '/');
     char* last_backslash = strrchr(path, '\\');
     char* last_slash = last_forslash > last_backslash ? last_forslash : last_backslash;
     return last_slash == NULL ? path : last_slash + 1;
 }
 
-static float get_window_scale(SDL_Window *window) {
+static float get_window_scale(SDL_Window* window) {
     int w, h, pw, ph;
     SDL_GetWindowSize(window, &w, &h);
     SDL_GetWindowSizeInPixels(window, &pw, &ph);
@@ -55,7 +58,7 @@ static void record_frame_time(uint64_t frame_end) {
     g_last_perf_counter = frame_end;
 }
 
-static bool try_set_present_mode(_gui *gui, SDL_GPUPresentMode mode) {
+static bool try_set_present_mode(_gui* gui, SDL_GPUPresentMode mode) {
     if (gui->present_mode == mode) return 0;
 
     bool success = SDL_SetGPUSwapchainParameters(
@@ -73,7 +76,7 @@ static bool try_set_present_mode(_gui *gui, SDL_GPUPresentMode mode) {
     return success;
 }
 
-static bool configure_present_mode(_gui *gui) {
+static bool configure_present_mode(_gui* gui) {
     for (size_t i = 0; i < PRESENT_MODE_COUNT; i++) {
         PRESENT_MODES[i].supported = SDL_WindowSupportsGPUPresentMode(
             gui->gpu_device,
@@ -105,7 +108,7 @@ static bool configure_present_mode(_gui *gui) {
     return false;
 }
 
-static bool create_texture(_gui *gui) {
+static bool create_texture(_gui* gui) {
     const SDL_GPUTextureCreateInfo tinfo = {
         .type = SDL_GPU_TEXTURETYPE_2D,
         .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
@@ -146,7 +149,7 @@ static bool create_texture(_gui *gui) {
     return true;
 }
 
-static bool create_pipeline(_gui *gui) {
+static bool create_pipeline(_gui* gui) {
     SDL_GPUShaderFormat supported = SDL_GetGPUShaderFormats(gui->gpu_device);
     SDL_GPUShaderFormat fmt = 0;
     if (supported & SDL_GPU_SHADERFORMAT_SPIRV) {
@@ -158,24 +161,24 @@ static bool create_pipeline(_gui *gui) {
         return false;
     }
 
-    const uint8_t *vs_code = NULL;
-    const uint8_t *fs_code = NULL;
+    const uint8_t* vs_code = NULL;
+    const uint8_t* fs_code = NULL;
     size_t vs_size = 0;
     size_t fs_size = 0;
 
     if (fmt == SDL_GPU_SHADERFORMAT_SPIRV) {
-        vs_code = (const uint8_t *)nes_vert_spv;
+        vs_code = (const uint8_t*)nes_vert_spv;
         vs_size = (size_t)nes_vert_spv_len;
-        fs_code = (const uint8_t *)nes_frag_spv;
+        fs_code = (const uint8_t*)nes_frag_spv;
         fs_size = (size_t)nes_frag_spv_len;
     } else {
-        vs_code = (const uint8_t *)nes_vert_msl;
+        vs_code = (const uint8_t*)nes_vert_msl;
         vs_size = (size_t)nes_vert_msl_len;
-        fs_code = (const uint8_t *)nes_frag_msl;
+        fs_code = (const uint8_t*)nes_frag_msl;
         fs_size = (size_t)nes_frag_msl_len;
     }
 
-    const char *entry = (fmt == SDL_GPU_SHADERFORMAT_MSL) ? "main0" : "main";
+    const char* entry = (fmt == SDL_GPU_SHADERFORMAT_MSL) ? "main0" : "main";
 
     const SDL_GPUShaderCreateInfo vs_info = {
         .stage = SDL_GPU_SHADERSTAGE_VERTEX,
@@ -240,18 +243,18 @@ static bool create_pipeline(_gui *gui) {
     return true;
 }
 
-static void upload_texture(_gui *gui, SDL_GPUCommandBuffer *cmdbuf) {
-    if (!gui || !gui->pixels || !gui->nes_transfer || !gui->nes_texture)
+static void upload_texture(_gui* gui, _ppu* ppu, SDL_GPUCommandBuffer* cmdbuf) {
+    if (!gui || !gui->nes_transfer || !gui->nes_texture)
         return;
 
-    uint32_t *dst = (uint32_t *)SDL_MapGPUTransferBuffer(gui->gpu_device, gui->nes_transfer, true);
+    uint32_t* dst = (uint32_t*)SDL_MapGPUTransferBuffer(gui->gpu_device, gui->nes_transfer, true);
     if (!dst)
         return;
 
-    memcpy(dst, gui->pixels, NES_PIXELS * sizeof(uint32_t));
+    memcpy(dst, ppu->pixels, NES_PIXELS * sizeof(uint32_t));
     SDL_UnmapGPUTransferBuffer(gui->gpu_device, gui->nes_transfer);
 
-    SDL_GPUCopyPass *copy = SDL_BeginGPUCopyPass(cmdbuf);
+    SDL_GPUCopyPass* copy = SDL_BeginGPUCopyPass(cmdbuf);
     if (!copy)
         return;
 
@@ -444,12 +447,16 @@ static void draw_main_menu(_gui* gui, _nes* nes) {
 
         if (ImGui_BeginMenu("FILE")) {
 
-            if (ImGui_MenuItemEx("OPEN\t", MOD_KEY "O", false, true))
+            if (ImGui_MenuItemEx("OPEN\t", MOD_KEY "O", false, true)) {
                 gui_open_file_dialog(gui, nes);
-            if (ImGui_MenuItemEx("RESET", MOD_KEY "R", false, true))
-                nes_reset(nes);
-            if (ImGui_MenuItemEx("QUIT", MOD_KEY "Q", false, true))
+            } else if (ImGui_MenuItemEx("SOFT RESET", MOD_KEY "S", false, true)) {
+                nes_soft_reset(nes);
+            } else if (ImGui_MenuItemEx("HARD RESET", MOD_KEY "R", false, true)) {
+                nes_hard_reset(nes);
+            } else if (ImGui_MenuItemEx("QUIT", MOD_KEY "Q", false, true)) {
                 nes->cpu.halt = 1;
+            }
+
             ImGui_EndMenu();
         }
 
@@ -469,7 +476,7 @@ static void draw_main_menu(_gui* gui, _nes* nes) {
     }
 }
 
-uint8_t gui_init(_gui *gui, char *file) {
+uint8_t gui_init(_gui* gui) {
     memset(gui, 0, sizeof(_gui));
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
@@ -478,11 +485,12 @@ uint8_t gui_init(_gui *gui, char *file) {
     }
 
     gui->window = SDL_CreateWindow(
-        game_name(file),
+        "cnes",
         NES_W * 3,
         NES_H * 3,
         SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY
     );
+
     if (!gui->window) {
         SDL_Log("ERROR: SDL_CreateWindow failed: %s", SDL_GetError());
         gui_deinit(gui);
@@ -493,6 +501,7 @@ uint8_t gui_init(_gui *gui, char *file) {
         SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_MSL,
         false, NULL
     );
+
     if (!gui->gpu_device) {
         SDL_Log("ERROR: SDL_CreateGPUDevice failed: %s", SDL_GetError());
         gui_deinit(gui);
@@ -513,14 +522,8 @@ uint8_t gui_init(_gui *gui, char *file) {
         gui_deinit(gui);
         return 1;
     }
-    if (!create_pipeline(gui)) {
-        gui_deinit(gui);
-        return 1;
-    }
 
-    gui->pixels = (uint32_t *)SDL_calloc(NES_PIXELS, sizeof(uint32_t));
-    if (!gui->pixels) {
-        SDL_Log("ERROR: Failed to allocate pixel buffer");
+    if (!create_pipeline(gui)) {
         gui_deinit(gui);
         return 1;
     }
@@ -529,14 +532,14 @@ uint8_t gui_init(_gui *gui, char *file) {
     gui->im_ctx = ImGui_CreateContext(NULL);
     ImGui_SetCurrentContext(gui->im_ctx);
 
-    ImGuiIO *io = ImGui_GetIO();
+    ImGuiIO* io = ImGui_GetIO();
     io->ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
     io->ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io->ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io->ConfigViewportsNoDecoration = false;
     io->ConfigViewportsNoAutoMerge = true;
 
-    ImGuiStyle *style = ImGui_GetStyle();
+    ImGuiStyle* style = ImGui_GetStyle();
     style->FramePadding = (ImVec2){8.f, 8.f};
     style->ItemSpacing = (ImVec2){8.f, 16.f};
     style->Colors[ImGuiCol_MenuBarBg] = (ImVec4){0.1f, 0.1f, 0.1f, 1.0f};
@@ -584,13 +587,7 @@ uint8_t gui_init(_gui *gui, char *file) {
     return 0;
 }
 
-void set_pixel(_gui *gui, uint16_t x, uint16_t y, uint32_t color) {
-    if (!gui || !gui->pixels) return;
-    if (x >= NES_W || y >= NES_H) return;
-    gui->pixels[y * NES_W + x] = color;
-}
-
-uint64_t gui_draw(_gui *gui, _nes *nes) {
+uint64_t gui_draw(_gui* gui, _nes* nes) {
     if (!gui || !gui->window || !gui->gpu_device) return 0;
 
     if (gui->needs_mode_update) {
@@ -599,12 +596,12 @@ uint64_t gui_draw(_gui *gui, _nes *nes) {
         gui->needs_mode_update = false;
     }
 
-    SDL_GPUCommandBuffer *cmdbuf = SDL_AcquireGPUCommandBuffer(gui->gpu_device);
+    SDL_GPUCommandBuffer* cmdbuf = SDL_AcquireGPUCommandBuffer(gui->gpu_device);
     if (!cmdbuf) return 0;
 
-    upload_texture(gui, cmdbuf);
+    upload_texture(gui, &nes->ppu, cmdbuf);
 
-    SDL_GPUTexture *swapchain_tex = NULL;
+    SDL_GPUTexture* swapchain_tex = NULL;
     uint32_t sw = 0, sh = 0;
     if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmdbuf, gui->window, &swapchain_tex, &sw, &sh) || !swapchain_tex) {
         SDL_CancelGPUCommandBuffer(cmdbuf);
@@ -618,7 +615,7 @@ uint64_t gui_draw(_gui *gui, _nes *nes) {
     draw_main_menu(gui, nes);
 
     ImGui_Render();
-    ImDrawData *draw_data = ImGui_GetDrawData();
+    ImDrawData* draw_data = ImGui_GetDrawData();
     cImGui_ImplSDLGPU3_PrepareDrawData(draw_data, cmdbuf);
 
     SDL_GPUColorTargetInfo color_target;
@@ -635,9 +632,9 @@ uint64_t gui_draw(_gui *gui, _nes *nes) {
     color_target.cycle = false;
     color_target.cycle_resolve_texture = false;
 
-    SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(cmdbuf, &color_target, 1, NULL);
+    SDL_GPURenderPass* render_pass = SDL_BeginGPURenderPass(cmdbuf, &color_target, 1, NULL);
     if (render_pass) {
-        ImGuiIO *io = ImGui_GetIO();
+        ImGuiIO* io = ImGui_GetIO();
         float scale_y = io->DisplayFramebufferScale.y > 0.0f ? io->DisplayFramebufferScale.y : 1.0f;
         float menu_height_px = gui->menu_height * scale_y;
         if (menu_height_px < 0.0f) menu_height_px = 0.0f;
@@ -685,7 +682,7 @@ uint64_t gui_draw(_gui *gui, _nes *nes) {
         SDL_EndGPURenderPass(render_pass);
     }
 
-    ImGuiIO *io = ImGui_GetIO();
+    ImGuiIO* io = ImGui_GetIO();
     if (io->ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         ImGui_UpdatePlatformWindows();
         ImGui_RenderPlatformWindowsDefault();
@@ -698,7 +695,7 @@ uint64_t gui_draw(_gui *gui, _nes *nes) {
     return frame_end;
 }
 
-void gui_deinit(_gui *gui) {
+void gui_deinit(_gui* gui) {
     if (!gui) return;
 
     if (gui->gpu_device) {
@@ -711,11 +708,6 @@ void gui_deinit(_gui *gui) {
         cImGui_ImplSDL3_Shutdown();
         ImGui_DestroyContext(gui->im_ctx);
         gui->im_ctx = NULL;
-    }
-
-    if (gui->pixels) {
-        SDL_free(gui->pixels);
-        gui->pixels = NULL;
     }
 
     if (gui->nes_pipeline) {
@@ -762,28 +754,21 @@ void gui_deinit(_gui *gui) {
     SDL_Quit();
 }
 
-static void on_file_opened(void *userdata, const char * const *filelist, int filter) {
+static void on_file_opened(void* userdata, const char*  const* filelist, int filter) {
     if (!filelist || !filelist[0]) {
         return;
     }
+    _nes* nes = userdata;
 
-    const char *path = filelist[0];
-    _nes *nes = (_nes*)userdata;
-    _gui *gui = nes->ppu.p_gui;
+    nes->hard_reset_pending = 1;
 
-    nes->cart.loaded = 0;
-    cart_unload(&nes->cart);
-
-    if (cart_load(&nes->cart, path)) {
-        return;
+    if (nes->cart.rom_path) {
+        free(nes->cart.rom_path);
     }
 
-    nes_reset(nes);
-    nes->cart.loaded = 1;
-
-    if (gui && gui->window) {
-        SDL_SetWindowTitle(gui->window, path);
-    }
+    size_t path_len = strlen(filelist[0]) + 1;
+    nes->cart.rom_path = (char*)malloc(path_len);
+    strncpy(nes->cart.rom_path, filelist[0], path_len);
 }
 
 void gui_open_file_dialog(_gui* gui, _nes* nes) {
@@ -794,4 +779,8 @@ void gui_open_file_dialog(_gui* gui, _nes* nes) {
     };
 
     SDL_ShowOpenFileDialog(on_file_opened, nes, gui->window, filters, 2, NULL, false);
+}
+
+void gui_set_title(_gui* gui, _cart* cart) {
+    SDL_SetWindowTitle(gui->window, game_name(cart->rom_path));
 }

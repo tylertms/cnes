@@ -73,7 +73,7 @@ void open_audio_stream(_apu* apu) {
     }
 }
 
-void apu_init(_apu* apu) {
+uint8_t apu_init(_apu* apu) {
     apu->audio_stream = NULL;
     apu->audio_retry = 0;
     apu->sample_count = 0;
@@ -81,8 +81,11 @@ void apu_init(_apu* apu) {
     open_audio_stream(apu);
 
     if (!apu->audio_stream) {
-        printf("Failed to open audio stream: %s\n", SDL_GetError());
+        fprintf(stderr, "ERROR: Failed to open audio stream: %s\n", SDL_GetError());
+        return 1;
     }
+
+    return 0;
 }
 
 void apu_deinit(_apu* apu) {

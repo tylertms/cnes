@@ -33,6 +33,8 @@ typedef struct _ppu {
     uint8_t nametable[0x0800];
     uint8_t palette_idx[0x20];
 
+    uint32_t* pixels;
+
     uint8_t ppuctrl;
     uint8_t ppumask;
     uint8_t ppustatus;
@@ -83,7 +85,6 @@ typedef struct _ppu {
 
     _cpu* p_cpu;
     _cart* p_cart;
-    _gui* p_gui;
 } _ppu;
 
 typedef enum _ppuctrl_flag {
@@ -144,7 +145,8 @@ typedef enum _sprite_attr {
 } _sprite_attr;
 
 uint8_t ppu_clock(_ppu* ppu);
-
+void set_pixel(_ppu* ppu, uint16_t x, uint16_t y, uint32_t color);
+uint8_t ppu_init(_ppu* ppu);
 uint8_t ppu_read(_ppu* ppu, uint16_t addr);
 void ppu_write(_ppu* ppu, uint16_t addr, uint8_t data);
 

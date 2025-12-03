@@ -329,7 +329,7 @@ uint8_t ppu_clock(_ppu* ppu) {
             pixel
         );
 
-        set_pixel(ppu->p_gui, x, y, color);
+        set_pixel(ppu, x, y, color);
     }
 
     ppu->cycle++;
@@ -349,6 +349,22 @@ uint8_t ppu_clock(_ppu* ppu) {
     }
 
     return frame_complete;
+}
+
+void set_pixel(_ppu* ppu, uint16_t x, uint16_t y, uint32_t color) {
+    if (!ppu || !ppu->pixels) return;
+    if (x >= NES_W || y >= NES_H) return;
+    ppu->pixels[y * NES_W + x] = color;
+}
+
+uint8_t ppu_init(_ppu* ppu) {
+    ppu->pixels = (uint32_t *)SDL_calloc(NES_PIXELS, sizeof(uint32_t));
+    if (!ppu->pixels) {
+        SDL_Log("ERROR: Failed to allocate pixel buffer");
+        return 1;
+    }
+
+    return 0;
 }
 
 uint8_t ppu_read(_ppu* ppu, uint16_t addr) {

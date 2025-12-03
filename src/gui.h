@@ -43,7 +43,6 @@ typedef struct _gui {
     SDL_GPUShader* nes_fs;
     SDL_GPUGraphicsPipeline* nes_pipeline;
 
-    uint32_t* pixels;
     float menu_height;
 
     bool quit;
@@ -52,8 +51,8 @@ typedef struct _gui {
     ImFont *nes_font;
 } _gui;
 
-uint8_t gui_init(_gui* gui, char* file);
-void set_pixel(_gui* gui, uint16_t x, uint16_t y, uint32_t color);
+uint8_t gui_init(_gui* gui);
 uint64_t gui_draw(_gui* gui, _nes* nes);
 void gui_deinit(_gui* gui);
 void gui_open_file_dialog(_gui* gui, _nes* nes);
+void gui_set_title(_gui* gui, _cart* cart);

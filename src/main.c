@@ -48,19 +48,23 @@ static uint8_t poll_controller_input(void) {
 int main(int argc, char **argv) {
     print_build_info();
 
-    char* rom_path = NULL;
-    if (argc > 1) {
-        rom_path = argv[1];
-    }
-
     _gui gui;
-    if (gui_init(&gui, rom_path ? "cnes" : argv[1])) {
+    if (gui_init(&gui)) {
         gui_deinit(&gui);
         return 1;
     }
 
     _nes nes;
-    if (nes_init(&nes, rom_path, &gui)) {
+    if (argc > 1) {
+        size_t path_len = strlen(argv[1]) + 1;
+        nes.cart.rom_path = (char*)malloc(path_len);
+        strncpy(nes.cart.rom_path, argv[1], path_len);
+        gui_set_title(&gui, &nes.cart);
+    } else {
+        nes.cart.rom_path = NULL;
+    }
+
+    if (nes_init(&nes)) {
         gui_deinit(&gui);
         nes_deinit(&nes);
         return 1;
@@ -81,9 +85,9 @@ int main(int argc, char **argv) {
     double min_frame_time = 1.0;
 
     while (!nes.cpu.halt && !gui.quit) {
-        if (!nes.cart.loaded) {
-            SDL_Delay(50);
-            continue;
+        if (nes.hard_reset_pending) {
+            nes_hard_reset(&nes);
+            gui_set_title(&gui, &nes.cart);
         }
 
         uint64_t now = SDL_GetPerformanceCounter();
@@ -111,7 +115,7 @@ int main(int argc, char **argv) {
             switch (event.type) {
             case SDL_EVENT_QUIT:
             case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
-                nes.cpu.halt = 1;
+                gui.quit = 1;
                 break;
 
             case SDL_EVENT_KEY_DOWN:
@@ -123,15 +127,24 @@ int main(int argc, char **argv) {
                     bool shortcut_pressed = (event.key.mod & SDL_KMOD_CTRL);
                 #endif
 
-                if (shortcut_pressed && event.key.key == SDLK_O) {
-                    gui_open_file_dialog(&gui, &nes);
-                } else if (shortcut_pressed && event.key.key == SDLK_R) {
-                    nes_reset(&nes);
-                } else if (shortcut_pressed && event.key.key == SDLK_Q) {
-                    nes.cpu.halt = 1;
-                } else {
-                    SDL_HideCursor();
+                if (shortcut_pressed) {
+                    if (event.key.key == SDLK_O) {
+                        gui_open_file_dialog(&gui, &nes);
+                        continue;
+                    } else if (event.key.key == SDLK_S) {
+                        nes_soft_reset(&nes);
+                        continue;
+                    } else if (event.key.key == SDLK_R) {
+                        nes_hard_reset(&nes);
+                        continue;
+                    } else if (shortcut_pressed && event.key.key == SDLK_Q) {
+                        nes.cpu.halt = 1;
+                        continue;
+                    } else {
+                        SDL_HideCursor();
+                    }
                 }
+
 
                 break;
 
@@ -145,8 +158,10 @@ int main(int argc, char **argv) {
 
         uint64_t work_start = SDL_GetPerformanceCounter();
 
-        nes_clock(&nes);
-        apu_flush_audio(&nes.apu);
+        if (nes.cart.loaded) {
+            nes_clock(&nes);
+            apu_flush_audio(&nes.apu);
+        }
 
         uint64_t current_time = SDL_GetPerformanceCounter();
         uint64_t frame_deadline = next_frame_target + (uint64_t)(NES_FRAME_TIME_SEC * perf_freq_dbl);
@@ -171,7 +186,7 @@ int main(int argc, char **argv) {
 
         double adjustment = 0.0;
 
-        if (nes.apu.audio_stream) {
+        if (nes.cart.loaded && nes.apu.audio_stream) {
             int queued = SDL_GetAudioStreamQueued(nes.apu.audio_stream);
             int diff = queued - AUDIO_TARGET_QUEUED_BYTES;
 
