@@ -1,49 +1,49 @@
 #include "../mapper.h"
 
-typedef struct _axrom {
+typedef struct _mdata {
     uint8_t prg_bank;
-} _axrom;
+} _mdata;
 
-uint8_t map_init_007(_cart* cart) {
-    _axrom* axrom = calloc(1, sizeof(_axrom));
-    cart->mapper.data = axrom;
+uint8_t map_init_7(_cart* cart) {
+    _mdata* mdata = calloc(1, sizeof(_mdata));
+    cart->mapper.data = mdata;
 
-    axrom->prg_bank = 0;
+    mdata->prg_bank = 0;
     cart->mirror = MIRROR_SINGLE0;
     return 0;
 }
 
-uint8_t map_deinit_007(_cart* cart) {
+uint8_t map_deinit_7(_cart* cart) {
     free(cart->mapper.data);
     return 0;
 }
 
-uint8_t map_irq_pending_007(_cart *cart) {
+uint8_t map_irq_pending_7(_cart *cart) {
     (void)cart;
     return 0;
 }
 
-uint8_t map_cpu_read_007(_cart* cart, uint16_t addr) {
+uint8_t map_cpu_read_7(_cart* cart, uint16_t addr) {
     uint8_t data = 0x00;
-    _axrom* axrom = cart->mapper.data;
+    _mdata* mdata = cart->mapper.data;
 
     if (0x8000 <= addr && addr <= 0xFFFF) {
-        uint32_t offset = (axrom->prg_bank * 0x8000) + (addr & 0x7FFF);
+        uint32_t offset = (mdata->prg_bank * 0x8000) + (addr & 0x7FFF);
         data = cart->prg_rom.data[offset];
     }
 
     return data;
 }
 
-void map_cpu_write_007(_cart* cart, uint16_t addr, uint8_t data) {
+void map_cpu_write_7(_cart* cart, uint16_t addr, uint8_t data) {
     if (0x8000 <= addr && addr <= 0xFFFF) {
-        _axrom* axrom = cart->mapper.data;
-        axrom->prg_bank = (data & 0x07) & (cart->prg_rom_banks - 1);
+        _mdata* mdata = cart->mapper.data;
+        mdata->prg_bank = (data & 0x07) & (cart->prg_rom_banks - 1);
         cart->mirror = (data & 0x10) ? MIRROR_SINGLE1 : MIRROR_SINGLE0;
     }
 }
 
-uint8_t map_ppu_read_007(_cart* cart, uint16_t addr) {
+uint8_t map_ppu_read_7(_cart* cart, uint16_t addr) {
     uint8_t data = 0x00;
 
     if (0x0000 <= addr && addr <= 0x1FFF) {
@@ -59,7 +59,7 @@ uint8_t map_ppu_read_007(_cart* cart, uint16_t addr) {
     return data;
 }
 
-void map_ppu_write_007(_cart* cart, uint16_t addr, uint8_t data) {
+void map_ppu_write_7(_cart* cart, uint16_t addr, uint8_t data) {
     if (0x0000 <= addr && addr <= 0x1FFF) {
         if (cart->chr_ram.size) {
             cart->chr_ram.data[addr & (cart->chr_ram.size - 1)] = data;

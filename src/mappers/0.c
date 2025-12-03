@@ -1,21 +1,21 @@
 #include "../mapper.h"
 
-uint8_t map_init_000(_cart* cart) {
+uint8_t map_init_0(_cart* cart) {
     (void)cart;
     return 0;
 }
 
-uint8_t map_deinit_000(_cart* cart) {
+uint8_t map_deinit_0(_cart* cart) {
     (void)cart;
     return 0;
 }
 
-uint8_t map_irq_pending_000(_cart *cart) {
+uint8_t map_irq_pending_0(_cart *cart) {
     (void)cart;
     return 0;
 }
 
-uint8_t map_cpu_read_000(_cart* cart, uint16_t addr) {
+uint8_t map_cpu_read_0(_cart* cart, uint16_t addr) {
     uint8_t data = 0x00;
 
     if (0x6000 <= addr && addr <= 0x7FFF) {
@@ -31,7 +31,7 @@ uint8_t map_cpu_read_000(_cart* cart, uint16_t addr) {
     return data;
 }
 
-void map_cpu_write_000(_cart* cart, uint16_t addr, uint8_t data) {
+void map_cpu_write_0(_cart* cart, uint16_t addr, uint8_t data) {
     if (0x6000 <= addr && addr <= 0x7FFF) {
         if (cart->prg_ram.size) {
             uint16_t offset = (addr - 0x6000) & (cart->prg_ram.size - 1);
@@ -40,7 +40,7 @@ void map_cpu_write_000(_cart* cart, uint16_t addr, uint8_t data) {
     }
 }
 
-uint8_t map_ppu_read_000(_cart* cart, uint16_t addr) {
+uint8_t map_ppu_read_0(_cart* cart, uint16_t addr) {
     uint8_t data = 0x00;
 
     if (0x0000 <= addr && addr <= 0x1FFF) {
@@ -56,7 +56,7 @@ uint8_t map_ppu_read_000(_cart* cart, uint16_t addr) {
     return data;
 }
 
-void map_ppu_write_000(_cart* cart, uint16_t addr, uint8_t data) {
+void map_ppu_write_0(_cart* cart, uint16_t addr, uint8_t data) {
     if (0x0000 <= addr && addr <= 0x1FFF) {
         if (cart->chr_ram.size) {
             cart->chr_ram.data[addr & (cart->chr_ram.size - 1)] = data;

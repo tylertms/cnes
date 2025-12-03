@@ -1,29 +1,29 @@
 #include "../mapper.h"
 
-typedef struct _cnrom {
+typedef struct _mdata {
     uint8_t chr_bank;
-} _cnrom;
+} _mdata;
 
-uint8_t map_init_003(_cart* cart) {
-    _cnrom* cnrom = calloc(1, sizeof(_cnrom));
-    if (cnrom == NULL) return 1;
-    cart->mapper.data = cnrom;
-    cnrom->chr_bank = 0;
+uint8_t map_init_3(_cart* cart) {
+    _mdata* mdata = calloc(1, sizeof(_mdata));
+    if (mdata == NULL) return 1;
+    cart->mapper.data = mdata;
+    mdata->chr_bank = 0;
 
     return 0;
 }
 
-uint8_t map_deinit_003(_cart* cart) {
+uint8_t map_deinit_3(_cart* cart) {
     free(cart->mapper.data);
     return 0;
 }
 
-uint8_t map_irq_pending_003(_cart *cart) {
+uint8_t map_irq_pending_3(_cart *cart) {
     (void)cart;
     return 0;
 }
 
-uint8_t map_cpu_read_003(_cart* cart, uint16_t addr) {
+uint8_t map_cpu_read_3(_cart* cart, uint16_t addr) {
     uint8_t data = 0x00;
 
     if (0x6000 <= addr && addr <= 0x7FFF) {
@@ -42,7 +42,7 @@ uint8_t map_cpu_read_003(_cart* cart, uint16_t addr) {
     return data;
 }
 
-void map_cpu_write_003(_cart* cart, uint16_t addr, uint8_t data) {
+void map_cpu_write_3(_cart* cart, uint16_t addr, uint8_t data) {
     if (0x6000 <= addr && addr <= 0x7FFF) {
         if (cart->prg_ram.size) {
             uint16_t offset = (addr - 0x6000) & (cart->prg_ram.size - 1);
@@ -52,19 +52,19 @@ void map_cpu_write_003(_cart* cart, uint16_t addr, uint8_t data) {
             cart->prg_nvram.data[offset] = data;
         }
     } else if (0x8000 <= addr && addr <= 0xFFFF) {
-        _cnrom* cnrom = cart->mapper.data;
-        cnrom->chr_bank = data & (cart->chr_rom_banks - 1);
+        _mdata* mdata = cart->mapper.data;
+        mdata->chr_bank = data & (cart->chr_rom_banks - 1);
     }
 }
 
-uint8_t map_ppu_read_003(_cart* cart, uint16_t addr) {
+uint8_t map_ppu_read_3(_cart* cart, uint16_t addr) {
     uint8_t data = 0x00;
 
     if (0x0000 <= addr && addr <= 0x1FFF) {
-        _cnrom* cnrom = cart->mapper.data;
+        _mdata* mdata = cart->mapper.data;
 
         if (cart->chr_rom.size) {
-            uint16_t offset = (cnrom->chr_bank * 0x2000 + addr) & (cart->chr_rom.size - 1);
+            uint16_t offset = (mdata->chr_bank * 0x2000 + addr) & (cart->chr_rom.size - 1);
             data = cart->chr_rom.data[offset];
         } else {
             uint16_t offset = addr & (cart->chr_ram.size - 1);
@@ -75,11 +75,11 @@ uint8_t map_ppu_read_003(_cart* cart, uint16_t addr) {
     return data;
 }
 
-void map_ppu_write_003(_cart* cart, uint16_t addr, uint8_t data) {
+void map_ppu_write_3(_cart* cart, uint16_t addr, uint8_t data) {
     if (0x0000 <= addr && addr <= 0x1FFF) {
         if (cart->chr_ram.size) {
-            _cnrom* cnrom = cart->mapper.data;
-            uint16_t offset = (cnrom->chr_bank * 0x2000 + addr) & (cart->chr_ram.size - 1);
+            _mdata* mdata = cart->mapper.data;
+            uint16_t offset = (mdata->chr_bank * 0x2000 + addr) & (cart->chr_ram.size - 1);
             cart->chr_ram.data[offset] = data;
         }
     }
