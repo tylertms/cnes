@@ -112,6 +112,8 @@ void apu_reset(_apu* apu) {
 }
 
 void apu_flush_audio(_apu *apu) {
+    if (!apu->audio_stream) return;
+
     if (apu->sample_count > 0) {
         if (apu->audio_stream) {
             SDL_PutAudioStreamData(

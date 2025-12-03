@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-uint8_t cart_load(_cart* cart, char* file) {
+uint8_t cart_load(_cart* cart, const char* file) {
     FILE* rom = fopen(file, "rb");
     if (rom == NULL) {
         fprintf(stderr, "ERROR: Failed to open .nes file!\n");
@@ -36,7 +36,10 @@ uint8_t cart_load(_cart* cart, char* file) {
     if (nes2) parse_nes2(cart, header);
     else parse_ines(cart, header);
 
-    if (mapper_load(cart)) return 1;
+    if (mapper_load(cart)) {
+        fprintf(stderr, "ERROR: Failed to find and initialize mapper!\n");
+        return 1;
+    }
 
     if (cart->trainer)
         fseek(rom, 0x200, SEEK_CUR);

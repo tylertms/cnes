@@ -1,6 +1,9 @@
 #include "gui.h"
 #include "PressStart2P-Regular.h"
+#include "cart.h"
+#include "cpu.h"
 #include "dcimgui.h"
+#include "nes.h"
 #include "ppu.h"
 
 #include <stdio.h>
@@ -52,8 +55,32 @@ static void record_frame_time(uint64_t frame_end) {
     g_last_perf_counter = frame_end;
 }
 
+static bool try_set_present_mode(_gui *gui, SDL_GPUPresentMode mode) {
+    if (gui->present_mode == mode) return 0;
+
+    bool success = SDL_SetGPUSwapchainParameters(
+        gui->gpu_device,
+        gui->window,
+        SDL_GPU_SWAPCHAINCOMPOSITION_SDR,
+        mode
+    );
+
+    if (success) {
+        gui->present_mode = mode;
+        SDL_Log("Using present mode %d (0=VSYNC, 1=IMMEDIATE, 2=MAILBOX)", (int)mode);
+    }
+
+    return success;
+}
+
 static bool configure_present_mode(_gui *gui) {
-    const SDL_GPUSwapchainComposition comp = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
+    for (size_t i = 0; i < PRESENT_MODE_COUNT; i++) {
+        PRESENT_MODES[i].supported = SDL_WindowSupportsGPUPresentMode(
+            gui->gpu_device,
+            gui->window,
+            PRESENT_MODES[i].mode
+        );
+    }
 
     const SDL_GPUPresentMode modes[] = {
         SDL_GPU_PRESENTMODE_MAILBOX,
@@ -67,15 +94,12 @@ static bool configure_present_mode(_gui *gui) {
     };
 
     const size_t num_modes = sizeof(modes) / sizeof(modes[0]);
-    for (size_t i = 0; i < num_modes; ++i) {
-        SDL_GPUPresentMode mode = modes[i];
-        if (!SDL_WindowSupportsGPUPresentMode(gui->gpu_device, gui->window, mode))
-            continue;
-        if (SDL_SetGPUSwapchainParameters(gui->gpu_device, gui->window, comp, mode)) {
-            SDL_Log("Using present mode %d (0=VSYNC, 1=IMMEDIATE, 2=MAILBOX)", (int)mode);
-            return true;
-        }
+    for (size_t i = 0; i < num_modes; i++) {
+        if (try_set_present_mode(gui, modes[i])) return true;
     }
+
+    gui->pending_mode = gui->present_mode;
+    gui->needs_mode_update = false;
 
     SDL_Log("Warning: Failed to set preferred present modes, keeping default swapchain parameters!");
     return false;
@@ -252,57 +276,198 @@ static void upload_texture(_gui *gui, SDL_GPUCommandBuffer *cmdbuf) {
     SDL_EndGPUCopyPass(copy);
 }
 
-static void draw_main_menu(_gui *gui, _nes *nes) {
+static void draw_view_menu(_gui* gui) {
+    if (ImGui_BeginTable("ViewTable", 2, ImGuiTableFlags_SizingStretchProp)) {
+
+        ImGui_TableNextRowEx(0, 0.0f);
+        ImGui_TableSetColumnIndex(0);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("SYNC MODE");
+
+        ImGui_TableSetColumnIndex(1);
+        ImGui_SetNextItemWidth(-FLT_MIN);
+
+        const char* preview = "Unknown";
+        for (int i = 0; i < PRESENT_MODE_COUNT; i++) {
+            if (PRESENT_MODES[i].mode == gui->present_mode) {
+                preview = PRESENT_MODES[i].name;
+                break;
+            }
+        }
+
+        if (ImGui_BeginCombo("##pres_mode", preview, 0)) {
+            for (int i = 0; i < PRESENT_MODE_COUNT; i++) {
+                const _present_mode* option = &PRESENT_MODES[i];
+                bool selected = (gui->present_mode == option->mode);
+                bool supported = SDL_WindowSupportsGPUPresentMode(gui->gpu_device, gui->window, option->mode);
+
+                if (!supported) ImGui_BeginDisabled(true);
+
+                if (ImGui_SelectableEx(option->name, selected, 0, (ImVec2){0, 0})) {
+                    if (supported) {
+                        gui->pending_mode = option->mode;
+                        gui->needs_mode_update = true;
+                    }
+                }
+
+                if (selected) ImGui_SetItemDefaultFocus();
+                if (!supported) {
+                    ImGui_EndDisabled();
+                    if (ImGui_IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                        ImGui_SetTooltip("Not supported");
+                }
+            }
+            ImGui_EndCombo();
+        }
+
+        ImGui_TableNextRowEx(0, 0.0f);
+        ImGui_TableSetColumnIndex(0);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("FPS");
+
+        ImGui_TableSetColumnIndex(1);
+        ImGui_AlignTextToFramePadding();
+
+        char fps_text[32];
+        float ms = g_frame_times_index > 0 ? g_frame_times[g_frame_times_index - 1] : 16.66f;
+        snprintf(fps_text, 32, "%.1f FPS (%.2f ms)", ms > 0.0f ? 1000.0f / ms : 0.0f, ms);
+
+        float text_w = ImGui_CalcTextSizeEx(fps_text, NULL, false, -1.0f).x;
+        ImGui_SetCursorPosX(ImGui_GetCursorPosX() + ImGui_GetContentRegionAvail().x - text_w);
+        ImGui_Text("%s", fps_text);
+
+        ImGui_TableNextRowEx(0, 0.0f);
+        ImGui_TableSetColumnIndex(0);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("FRAME HISTORY\t");
+
+        ImGui_TableSetColumnIndex(1);
+        ImGui_AlignTextToFramePadding();
+
+        int count = g_frame_times_filled ? FRAME_HISTORY : g_frame_times_index;
+        if (count > 0) {
+            ImGui_PlotLinesEx("##frametimes", g_frame_times, count,
+                g_frame_times_filled ? g_frame_times_index : 0,
+                NULL, NES_FRAME_TIME * 1000.0f - 5.0f, NES_FRAME_TIME * 1000.0f + 5.0f,
+                (ImVec2){300.0f, 30.0f}, sizeof(float));
+        }
+
+        ImGui_EndTable();
+    }
+}
+
+const char* format_bytes(size_t bytes, char* buffer, size_t buffer_size) {
+    const char* units[] = {" B", "KB", "MB", "GB", "TB", "PB", "EB"};
+    int unit_index = 0;
+    double value = (double)bytes;
+
+    while (value >= 1024 && unit_index < sizeof(units) / sizeof(units[0]) - 1) {
+        value /= 1024;
+        unit_index++;
+    }
+
+    snprintf(buffer, buffer_size, "%4d %s", (int)value, units[unit_index]);
+    return buffer;
+}
+
+static void draw_info_menu(_nes* nes) {
+    if (ImGui_BeginTable("InfoTable", 2, ImGuiTableFlags_SizingStretchProp)) {
+        ImGui_TableNextRowEx(0, 0.0f);
+        ImGui_TableSetColumnIndex(0);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("MAPPER");
+
+        ImGui_TableSetColumnIndex(1);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("%d", nes->cart.mapper_id & 0x0FFF);
+
+
+        ImGui_TableNextRowEx(0, 0.0f);
+        ImGui_TableSetColumnIndex(0);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("SUBMAPPER");
+
+        ImGui_TableSetColumnIndex(1);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("%d", nes->cart.mapper_id >> 12);
+
+
+        const int8_t buf_size = 32;
+        char prg_buf[buf_size];
+        char chr_buf[buf_size];
+
+        ImGui_TableNextRowEx(0, 0.0f);
+        ImGui_TableSetColumnIndex(0);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("ROM");
+
+        ImGui_TableSetColumnIndex(1);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("PRG: %s, CHR: %s",
+            format_bytes(nes->cart.prg_rom.size, prg_buf, buf_size),
+            format_bytes(nes->cart.chr_rom.size, chr_buf, buf_size)
+        );
+
+
+        ImGui_TableNextRowEx(0, 0.0f);
+        ImGui_TableSetColumnIndex(0);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("RAM");
+
+        ImGui_TableSetColumnIndex(1);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("PRG: %s, CHR: %s",
+            format_bytes(nes->cart.prg_ram.size, prg_buf, buf_size),
+            format_bytes(nes->cart.chr_ram.size, chr_buf, buf_size)
+        );
+
+
+        ImGui_TableNextRowEx(0, 0.0f);
+        ImGui_TableSetColumnIndex(0);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("BATTERY-BACKED RAM\t");
+
+        ImGui_TableSetColumnIndex(1);
+        ImGui_AlignTextToFramePadding();
+        ImGui_Text("PRG: %s, CHR: %s",
+            format_bytes(nes->cart.prg_nvram.size, prg_buf, buf_size),
+            format_bytes(nes->cart.chr_nvram.size, chr_buf, buf_size)
+        );
+
+
+        ImGui_EndTable();
+    }
+}
+
+static void draw_main_menu(_gui* gui, _nes* nes) {
     if (ImGui_BeginMainMenuBar()) {
         gui->menu_height = ImGui_GetWindowSize().y;
 
         if (ImGui_BeginMenu("FILE")) {
-            if (ImGui_MenuItem("RESET"))
+
+            if (ImGui_MenuItemEx("OPEN\t", MOD_KEY "O", false, true))
+                gui_open_file_dialog(gui, nes);
+            if (ImGui_MenuItemEx("RESET", MOD_KEY "R", false, true))
                 nes_reset(nes);
-            if (ImGui_MenuItem("SETTINGS"))
-                gui->show_settings = true;
-            if (ImGui_MenuItem("QUIT"))
+            if (ImGui_MenuItemEx("QUIT", MOD_KEY "Q", false, true))
                 nes->cpu.halt = 1;
             ImGui_EndMenu();
         }
+
         if (ImGui_BeginMenu("VIEW")) {
+            draw_view_menu(gui);
             ImGui_EndMenu();
         }
+
+        if (ImGui_BeginMenu("INFO")) {
+            draw_info_menu(nes);
+            ImGui_EndMenu();
+        }
+
         ImGui_EndMainMenuBar();
     } else {
         gui->menu_height = 0.0f;
     }
-}
-
-static void draw_settings_window(_gui *gui) {
-    if (!gui->show_settings)
-        return;
-
-    ImGui_SetNextWindowSize((ImVec2){480.0f, 320.0f}, ImGuiCond_FirstUseEver);
-
-    ImGuiWindowFlags flags =
-        ImGuiWindowFlags_NoDocking |
-        ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoCollapse;
-
-    if (ImGui_Begin("Settings", &gui->show_settings, flags)) {
-        int count = g_frame_times_filled ? FRAME_HISTORY : g_frame_times_index;
-        if (count > 0) {
-            ImVec2 size = (ImVec2){160.0f, 40.0f};
-            ImGui_PlotLinesEx(
-                "Frame time (ms)",
-                g_frame_times,
-                count,
-                g_frame_times_filled ? g_frame_times_index : 0,
-                NULL,
-                NES_FRAME_TIME * 1000.0f - 2.0f,
-                NES_FRAME_TIME * 1000.0f + 2.0f,
-                size,
-                sizeof(float)
-            );
-        }
-    }
-    ImGui_End();
 }
 
 uint8_t gui_init(_gui *gui, char *file) {
@@ -341,7 +506,9 @@ uint8_t gui_init(_gui *gui, char *file) {
         return 1;
     }
 
-    if (!configure_present_mode(gui)) {}
+    if (!configure_present_mode(gui)) {
+        return 1;
+    }
 
     if (!create_texture(gui)) {
         gui_deinit(gui);
@@ -371,7 +538,7 @@ uint8_t gui_init(_gui *gui, char *file) {
     io->ConfigViewportsNoAutoMerge = true;
 
     ImGuiStyle *style = ImGui_GetStyle();
-    style->FramePadding = (ImVec2){0.f, 8.f};
+    style->FramePadding = (ImVec2){8.f, 8.f};
     style->ItemSpacing = (ImVec2){8.f, 16.f};
     style->Colors[ImGuiCol_MenuBarBg] = (ImVec4){0.1f, 0.1f, 0.1f, 1.0f};
 
@@ -427,6 +594,12 @@ void set_pixel(_gui *gui, uint16_t x, uint16_t y, uint32_t color) {
 uint64_t gui_draw(_gui *gui, _nes *nes) {
     if (!gui || !gui->window || !gui->gpu_device) return 0;
 
+    if (gui->needs_mode_update) {
+        SDL_WaitForGPUIdle(gui->gpu_device);
+        try_set_present_mode(gui, gui->pending_mode);
+        gui->needs_mode_update = false;
+    }
+
     SDL_GPUCommandBuffer *cmdbuf = SDL_AcquireGPUCommandBuffer(gui->gpu_device);
     if (!cmdbuf) return 0;
 
@@ -444,7 +617,6 @@ uint64_t gui_draw(_gui *gui, _nes *nes) {
     ImGui_NewFrame();
 
     draw_main_menu(gui, nes);
-    draw_settings_window(gui);
 
     ImGui_Render();
     ImDrawData *draw_data = ImGui_GetDrawData();
@@ -589,4 +761,38 @@ void gui_deinit(_gui *gui) {
     }
 
     SDL_Quit();
+}
+
+static void on_file_opened(void *userdata, const char * const *filelist, int filter) {
+    if (!filelist || !filelist[0]) {
+        return;
+    }
+
+    const char *path = filelist[0];
+    _nes *nes = (_nes*)userdata;
+    _gui *gui = nes->ppu.p_gui;
+
+    nes->cart.loaded = 0;
+    cart_unload(&nes->cart);
+
+    if (cart_load(&nes->cart, path)) {
+        return;
+    }
+
+    nes_reset(nes);
+    nes->cart.loaded = 1;
+
+    if (gui && gui->window) {
+        SDL_SetWindowTitle(gui->window, path);
+    }
+}
+
+void gui_open_file_dialog(_gui* gui, _nes* nes) {
+    const SDL_DialogFileFilter filters[] = {
+        { "iNES/NES2.0", "nes" },
+        { "All Files", "*" },
+        { NULL, NULL }
+    };
+
+    SDL_ShowOpenFileDialog(on_file_opened, nes, gui->window, filters, 2, NULL, false);
 }

@@ -12,20 +12,23 @@ uint8_t nes_init(_nes* nes, char* file, _gui* gui) {
     nes->cpu.p_ppu = &nes->ppu;
     nes->cpu.p_cart = &nes->cart;
     nes->cpu.p_input = &nes->input;
-
     nes->apu.p_cpu = &nes->cpu;
-
     nes->ppu.p_cart = &nes->cart;
     nes->ppu.p_gui = gui;
     nes->ppu.p_cpu = &nes->cpu;
 
-    uint8_t res = cart_load(&nes->cart, file);
-    if (res) {
-        return 1;
+    apu_init(&nes->apu);
+
+    if (file) {
+        if (cart_load(&nes->cart, file)) {
+            nes->cart.loaded = 0;
+            return 1;
+        }
+
+        nes->cart.loaded = 1;
+        nes_reset(nes);
     }
 
-    apu_init(&nes->apu);
-    nes_reset(nes);
     return 0;
 }
 

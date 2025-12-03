@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <SDL3/SDL.h>
 
-#define CNES_STATS
+#define CNES_NO_STATS
 #define NES_REFRESH_RATE 60.0988138974405
 #define NES_FRAME_TIME_SEC (1.0 / NES_REFRESH_RATE)
 
@@ -48,19 +48,19 @@ static uint8_t poll_controller_input(void) {
 int main(int argc, char **argv) {
     print_build_info();
 
-    if (argc <= 1) {
-        printf("Usage: %s <file.nes>\n", argv[0]);
-        return 1;
+    char* rom_path = NULL;
+    if (argc > 1) {
+        rom_path = argv[1];
     }
 
     _gui gui;
-    if (gui_init(&gui, argv[1])) {
+    if (gui_init(&gui, rom_path ? "cnes" : argv[1])) {
         gui_deinit(&gui);
         return 1;
     }
 
     _nes nes;
-    if (nes_init(&nes, argv[1], &gui)) {
+    if (nes_init(&nes, rom_path, &gui)) {
         gui_deinit(&gui);
         nes_deinit(&nes);
         return 1;
@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
     double perf_freq_dbl = (double)perf_freq;
     uint64_t next_frame_target = SDL_GetPerformanceCounter();
 
-#ifdef CNES_STATS
+#ifndef CNES_NO_STATS
     uint64_t last_stats_time = next_frame_target;
     uint64_t frame_count_stats = 0;
     uint64_t dropped_frames_stats = 0;
@@ -81,6 +81,11 @@ int main(int argc, char **argv) {
     double min_frame_time = 1.0;
 
     while (!nes.cpu.halt && !gui.quit) {
+        if (!nes.cart.loaded) {
+            SDL_Delay(50);
+            continue;
+        }
+
         uint64_t now = SDL_GetPerformanceCounter();
         int64_t remaining_ticks = (int64_t)next_frame_target - (int64_t)now;
 
@@ -110,12 +115,24 @@ int main(int argc, char **argv) {
                 break;
 
             case SDL_EVENT_KEY_DOWN:
-                if ((event.key.scancode == SDL_SCANCODE_BACKSPACE) ||
-                    (event.key.scancode == SDL_SCANCODE_DELETE)) {
+                if (ImGui_GetIO()->WantCaptureKeyboard) break;
+
+                #ifdef __APPLE__
+                    bool shortcut_pressed = (event.key.mod & SDL_KMOD_GUI);
+                #else
+                    bool shortcut_pressed = (event.key.mod & SDL_KMOD_CTRL);
+                #endif
+
+                if (shortcut_pressed && event.key.key == SDLK_O) {
+                    gui_open_file_dialog(&gui, &nes);
+                } else if (shortcut_pressed && event.key.key == SDLK_R) {
                     nes_reset(&nes);
+                } else if (shortcut_pressed && event.key.key == SDLK_Q) {
+                    nes.cpu.halt = 1;
                 } else {
                     SDL_HideCursor();
                 }
+
                 break;
 
             case SDL_EVENT_MOUSE_MOTION:
@@ -127,11 +144,9 @@ int main(int argc, char **argv) {
         nes.input.controller[0] = poll_controller_input();
 
         uint64_t work_start = SDL_GetPerformanceCounter();
-        nes_clock(&nes);
 
-        if (nes.apu.audio_stream) {
-            apu_flush_audio(&nes.apu);
-        }
+        nes_clock(&nes);
+        apu_flush_audio(&nes.apu);
 
         uint64_t current_time = SDL_GetPerformanceCounter();
         uint64_t frame_deadline = next_frame_target + (uint64_t)(NES_FRAME_TIME_SEC * perf_freq_dbl);
@@ -139,7 +154,7 @@ int main(int argc, char **argv) {
         bool skip_draw = false;
         if (current_time > frame_deadline) {
             skip_draw = true;
-#ifdef CNES_STATS
+#ifndef CNES_NO_STATS
             dropped_frames_stats++;
 #endif
         }
@@ -175,7 +190,7 @@ int main(int argc, char **argv) {
              next_frame_target = now;
         }
 
-#ifdef CNES_STATS
+#ifndef CNES_NO_STATS
         frame_count_stats++;
         double time_since_stats = (double)(now - last_stats_time) / perf_freq_dbl;
 
