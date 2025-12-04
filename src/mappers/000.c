@@ -1,16 +1,16 @@
 #include "../mapper.h"
 
-uint8_t map_init_0(_cart* cart) {
+CNES_RESULT map_init_0(_cart* cart) {
     (void)cart;
-    return 0;
+    return CNES_SUCCESS;
 }
 
-uint8_t map_deinit_0(_cart* cart) {
+CNES_RESULT map_deinit_0(_cart* cart) {
     (void)cart;
-    return 0;
+    return CNES_SUCCESS;
 }
 
-uint8_t map_irq_pending_0(_cart *cart) {
+CNES_RESULT map_irq_pending_0(_cart* cart) {
     (void)cart;
     return 0;
 }

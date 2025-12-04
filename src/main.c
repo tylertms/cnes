@@ -2,11 +2,10 @@
 #include "gui.h"
 #include <stdio.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <SDL3/SDL.h>
 
-#define CNES_NO_STATS
+//#define CNES_NO_STATS
 #define NES_REFRESH_RATE 60.0988138974405
 #define NES_FRAME_TIME_SEC (1.0 / NES_REFRESH_RATE)
 
@@ -30,7 +29,7 @@ static inline void print_build_info(void) {
 }
 
 static uint8_t poll_controller_input(void) {
-    const bool *state = SDL_GetKeyboardState(NULL);
+    const bool* state = SDL_GetKeyboardState(NULL);
     uint8_t mask = 0;
 
     if (state[SDL_SCANCODE_X])     mask |= 0x80;
@@ -45,13 +44,13 @@ static uint8_t poll_controller_input(void) {
     return mask;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     print_build_info();
 
     _gui gui;
-    if (gui_init(&gui)) {
+    if (gui_init(&gui) != CNES_SUCCESS) {
         gui_deinit(&gui);
-        return 1;
+        return CNES_FAILURE;
     }
 
     _nes nes;
@@ -64,10 +63,10 @@ int main(int argc, char **argv) {
         nes.cart.rom_path = NULL;
     }
 
-    if (nes_init(&nes)) {
+    if (nes_init(&nes) != CNES_SUCCESS) {
         gui_deinit(&gui);
         nes_deinit(&nes);
-        return 1;
+        return CNES_FAILURE;
     }
 
     uint64_t perf_freq = SDL_GetPerformanceFrequency();
@@ -122,9 +121,9 @@ int main(int argc, char **argv) {
                 if (ImGui_GetIO()->WantCaptureKeyboard) break;
 
                 #ifdef __APPLE__
-                    bool shortcut_pressed = (event.key.mod & SDL_KMOD_GUI);
+                    uint16_t shortcut_pressed = (event.key.mod & SDL_KMOD_GUI);
                 #else
-                    bool shortcut_pressed = (event.key.mod & SDL_KMOD_CTRL);
+                    uint16_t shortcut_pressed = (event.key.mod & SDL_KMOD_CTRL);
                 #endif
 
                 if (shortcut_pressed) {
@@ -144,7 +143,6 @@ int main(int argc, char **argv) {
                         SDL_HideCursor();
                     }
                 }
-
 
                 break;
 
@@ -166,7 +164,7 @@ int main(int argc, char **argv) {
         uint64_t current_time = SDL_GetPerformanceCounter();
         uint64_t frame_deadline = next_frame_target + (uint64_t)(NES_FRAME_TIME_SEC * perf_freq_dbl);
 
-        bool skip_draw = false;
+        uint8_t skip_draw = false;
         if (current_time > frame_deadline) {
             skip_draw = true;
 #ifndef CNES_NO_STATS

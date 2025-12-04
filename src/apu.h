@@ -1,5 +1,7 @@
 #pragma once
+#include "cnes.h"
 #include <SDL3/SDL_audio.h>
+#include <SDL3/SDL_hints.h>
 
 #define CPU_FREQ_NTSC 1789773.0
 #define SAMPLE_RATE 48000.0
@@ -149,38 +151,38 @@ typedef struct _apu {
     int pulse1_ramp, pulse2_ramp, triangle_ramp, noise_ramp, dmc_ramp;
 } _apu;
 
-uint8_t apu_init(_apu *apu);
-void apu_deinit(_apu *apu);
-void apu_reset(_apu *apu);
-void apu_clock(_apu *apu);
-void apu_flush_audio(_apu *apu);
+CNES_RESULT apu_init(_apu* apu);
+void apu_deinit(_apu* apu);
+void apu_reset(_apu* apu);
+void apu_clock(_apu* apu);
+void apu_flush_audio(_apu* apu);
 
-uint8_t apu_cpu_read(_apu *apu, uint16_t addr);
-void apu_cpu_write(_apu *apu, uint16_t addr, uint8_t data);
+uint8_t apu_cpu_read(_apu* apu, uint16_t addr);
+void apu_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
 
-void pulse1_cpu_write(_apu *apu, uint16_t addr, uint8_t data);
-void pulse2_cpu_write(_apu *apu, uint16_t addr, uint8_t data);
-void triangle_cpu_write(_apu *apu, uint16_t addr, uint8_t data);
-void noise_cpu_write(_apu *apu, uint16_t addr, uint8_t data);
-void dmc_cpu_write(_apu *apu, uint16_t addr, uint8_t data);
+void pulse1_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
+void pulse2_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
+void triangle_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
+void noise_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
+void dmc_cpu_write(_apu* apu, uint16_t addr, uint8_t data);
 void dmc_dma_complete(_apu* apu);
 
-void clock_pulse_envelope(_pulse *p);
-void clock_pulse_length(_pulse *p);
-void clock_pulse_sweep(_pulse *p, int is_pulse1);
-void clock_pulse(_pulse *p);
-uint8_t sample_pulse(_pulse *p);
+void clock_pulse_envelope(_pulse* p);
+void clock_pulse_length(_pulse* p);
+void clock_pulse_sweep(_pulse* p, int is_pulse1);
+void clock_pulse(_pulse* p);
+uint8_t sample_pulse(_pulse* p);
 
-void clock_triangle_linear(_triangle *t);
-void clock_triangle_length(_triangle *t);
-void clock_triangle(_triangle *t);
-uint8_t sample_triangle(_triangle *t);
+void clock_triangle_linear(_triangle* t);
+void clock_triangle_length(_triangle* t);
+void clock_triangle(_triangle* t);
+uint8_t sample_triangle(_triangle* t);
 
-void clock_noise_envelope(_noise *n);
-void clock_noise_length(_noise *n);
-void clock_noise(_noise *n);
-uint8_t sample_noise(_noise *n);
+void clock_noise_envelope(_noise* n);
+void clock_noise_length(_noise* n);
+void clock_noise(_noise* n);
+uint8_t sample_noise(_noise* n);
 
-void clock_dmc(_apu *apu);
-uint8_t sample_dmc(_dmc *d);
-void clock_frame_counter(_apu *apu);
+void clock_dmc(_apu* apu);
+uint8_t sample_dmc(_dmc* d);
+void clock_frame_counter(_apu* apu);

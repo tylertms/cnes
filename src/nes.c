@@ -1,11 +1,12 @@
 #include "nes.h"
 #include "apu.h"
+#include "cnes.h"
 #include "cpu.h"
 #include "ppu.h"
 #include <string.h>
 #include <stdlib.h>
 
-uint8_t nes_init(_nes* nes) {
+CNES_RESULT nes_init(_nes* nes) {
     char* rom_path = nes->cart.rom_path;
     memset(nes, 0, sizeof(_nes));
 
@@ -19,25 +20,25 @@ uint8_t nes_init(_nes* nes) {
 
     nes->cart.rom_path = rom_path;
 
-    if (apu_init(&nes->apu)) {
-        return 1;
+    if (apu_init(&nes->apu) != CNES_SUCCESS) {
+        return CNES_FAILURE;
     }
 
-    if (ppu_init(&nes->ppu)) {
-        return 1;
+    if (ppu_init(&nes->ppu) != CNES_SUCCESS) {
+        return CNES_FAILURE;
     }
 
     if (nes->cart.rom_path) {
-        if (cart_load(&nes->cart)) {
+        if (cart_load(&nes->cart) != CNES_SUCCESS) {
             nes->cart.loaded = 0;
-            return 1;
+            return CNES_FAILURE;
         }
 
         nes->cart.loaded = 1;
         nes_soft_reset(nes);
     }
 
-    return 0;
+    return CNES_SUCCESS;
 }
 
 void nes_deinit(_nes* nes) {

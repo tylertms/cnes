@@ -1,4 +1,5 @@
 #pragma once
+#include "cnes.h"
 #include <stdint.h>
 
 #define NES_W           256
@@ -144,9 +145,9 @@ typedef enum _sprite_attr {
     FLIP_VERTICAL   = 0x80,
 } _sprite_attr;
 
-uint8_t ppu_clock(_ppu* ppu);
+CNES_RESULT ppu_clock(_ppu* ppu);
 void set_pixel(_ppu* ppu, uint16_t x, uint16_t y, uint32_t color);
-uint8_t ppu_init(_ppu* ppu);
+CNES_RESULT ppu_init(_ppu* ppu);
 uint8_t ppu_read(_ppu* ppu, uint16_t addr);
 void ppu_write(_ppu* ppu, uint16_t addr, uint8_t data);
 
@@ -171,10 +172,9 @@ void transfer_addr_x(_ppu* ppu);
 void transfer_addr_y(_ppu* ppu);
 void load_bgrnd_shifters(_ppu* ppu);
 void update_shifters(_ppu* ppu);
-void ppu_update_nmi_state(_ppu *ppu);
+void ppu_update_nmi_state(_ppu* ppu);
 
 uint32_t get_color(_ppu* ppu, uint8_t palette, uint8_t emphasis, uint8_t pixel);
-
 uint8_t physical_nametable(_cart* cart, uint8_t logical);
 
 static inline uint8_t reverse_byte(uint8_t b) {

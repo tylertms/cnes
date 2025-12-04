@@ -16,7 +16,7 @@ typedef struct _nes {
     uint8_t hard_reset_pending;
 } _nes;
 
-uint8_t nes_init(_nes* nes);
+CNES_RESULT nes_init(_nes* nes);
 void nes_deinit(_nes* nes);
 void nes_soft_reset(_nes* nes);
 void nes_hard_reset(_nes* nes);

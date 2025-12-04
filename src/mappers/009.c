@@ -15,23 +15,22 @@ typedef struct _mdata {
     uint8_t latch_high;
 } _mdata;
 
-uint8_t map_init_9(_cart* cart) {
+CNES_RESULT map_init_9(_cart* cart) {
     _mdata* mdata = calloc(1, sizeof(_mdata));
-    if (!mdata) return 1;
-
+    if (mdata == NULL) return CNES_FAILURE;
     cart->mapper.data = mdata;
+
     mdata->latch_low = LATCH_FD;
     mdata->latch_high = LATCH_FD;
-
-    return 0;
+    return CNES_SUCCESS;
 }
 
-uint8_t map_deinit_9(_cart* cart) {
-    if (cart->mapper.data) free(cart->mapper.data);
-    return 0;
+CNES_RESULT map_deinit_9(_cart* cart) {
+    free(cart->mapper.data);
+    return CNES_SUCCESS;
 }
 
-uint8_t map_irq_pending_9(_cart *cart) {
+CNES_RESULT map_irq_pending_9(_cart* cart) {
     (void)cart;
     return 0;
 }

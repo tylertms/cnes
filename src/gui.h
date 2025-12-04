@@ -34,7 +34,7 @@ typedef struct _gui {
 
     SDL_GPUPresentMode present_mode;
     SDL_GPUPresentMode pending_mode;
-    bool needs_mode_update;
+    uint8_t needs_mode_update;
 
     SDL_GPUTexture* nes_texture;
     SDL_GPUTransferBuffer* nes_transfer;
@@ -45,14 +45,14 @@ typedef struct _gui {
 
     float menu_height;
 
-    bool quit;
+    uint8_t quit;
 
     ImGuiContext* im_ctx;
-    ImFont *nes_font;
+    ImFont* nes_font;
 } _gui;
 
-uint8_t gui_init(_gui* gui);
-uint64_t gui_draw(_gui* gui, _nes* nes);
+CNES_RESULT gui_init(_gui* gui);
+void gui_draw(_gui* gui, _nes* nes);
 void gui_deinit(_gui* gui);
 void gui_open_file_dialog(_gui* gui, _nes* nes);
 void gui_set_title(_gui* gui, _cart* cart);

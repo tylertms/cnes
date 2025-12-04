@@ -1,10 +1,11 @@
 #pragma once
+#include "cnes.h"
 #include "cpu.h"
 #include <stdint.h>
 #include <stddef.h>
 
 typedef struct _cart _cart;
-typedef uint8_t (*map_fn_ctrl)(_cart*);
+typedef CNES_RESULT (*map_fn_ctrl)(_cart*);
 typedef uint8_t (*map_fn_read)(_cart*, uint16_t);
 typedef void (*map_fn_write)(_cart*, uint16_t, uint8_t);
 
@@ -67,10 +68,10 @@ typedef struct _cart {
     uint8_t expansion_device;
 } _cart;
 
-uint8_t cart_load(_cart* cart);
+CNES_RESULT cart_load(_cart* cart);
 void cart_unload(_cart* cart);
-uint8_t parse_ines(_cart* cart, uint8_t header[16]);
-uint8_t parse_nes2(_cart* cart, uint8_t header[16]);
+void parse_ines(_cart* cart, uint8_t header[16]);
+void parse_nes2(_cart* cart, uint8_t header[16]);
 
 uint8_t cart_cpu_read(_cart* cart, uint16_t addr);
 void cart_cpu_write(_cart* cart, uint16_t addr, uint8_t data);

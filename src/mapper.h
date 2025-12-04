@@ -1,5 +1,7 @@
 #pragma once
 #include "cart.h"
+#include "cnes.h"
+#include "nes.h"
 #include <stdlib.h>
 
 extern _mapper mapper_table[256];
@@ -21,7 +23,7 @@ extern _mapper mapper_table[256];
 #endif
 
 
-uint8_t mapper_load(_cart* cart);
+CNES_RESULT mapper_load(_cart* cart);
 
 // MISC
-void mmc3_scanline_tick(_cart *cart);
+void mmc3_scanline_tick(_cart* cart);

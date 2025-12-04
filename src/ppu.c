@@ -1,17 +1,17 @@
 #include "ppu.h"
+#include "cnes.h"
 #include "cpu.h"
 #include "cart.h"
-#include "gui.h"
 #include "mapper.h"
 #include "palette.h"
 #include <string.h>
 
-static inline void ppu_bus_set(_ppu *ppu, uint8_t value) {
+static inline void ppu_bus_set(_ppu* ppu, uint8_t value) {
     ppu->ppudata = value;
     ppu->bus_decay = 0x8000;
 }
 
-static inline void ppu_bus_decay(_ppu *ppu) {
+static inline void ppu_bus_decay(_ppu* ppu) {
     if (ppu->bus_decay) {
         ppu->bus_decay--;
         if (!ppu->bus_decay) {
@@ -32,7 +32,7 @@ static inline uint8_t sprite_enabled(_ppu* ppu) {
     return ppu->ppumask & SPRITE_EN;
 }
 
-uint8_t ppu_clock(_ppu* ppu) {
+CNES_RESULT ppu_clock(_ppu* ppu) {
     ppu_bus_decay(ppu);
 
     if (ppu->nmi_delay > 0) {
@@ -51,7 +51,7 @@ uint8_t ppu_clock(_ppu* ppu) {
         }
     }
 
-    uint8_t frame_complete = 0x00;
+    CNES_RESULT frame_complete = 0;
 
     const int scanline = ppu->scanline;
     const int cycle = ppu->cycle;
@@ -78,7 +78,7 @@ uint8_t ppu_clock(_ppu* ppu) {
             ppu->ppustatus |= VBLANK;
             ppu_update_nmi_state(ppu);
         }
-        frame_complete = 0x01;
+        frame_complete = 1;
     } else if (ppu->suppress_vbl_flag && (scanline == 241 && cycle > 1)) {
         ppu->suppress_vbl_flag = 0;
     }
@@ -188,7 +188,7 @@ uint8_t ppu_clock(_ppu* ppu) {
 
             if (next_scanline < NES_H && scanline < NES_H) {
                 for (uint8_t i = 0; i < ppu->sprite_count; i++) {
-                    _sprite *s = &ppu->sprites[i];
+                    _sprite* s = &ppu->sprites[i];
 
                     int16_t line = (int16_t)scanline - (int16_t)s->pos_y;
                     uint8_t flip_v = (s->attr & FLIP_VERTICAL);
@@ -357,14 +357,14 @@ void set_pixel(_ppu* ppu, uint16_t x, uint16_t y, uint32_t color) {
     ppu->pixels[y * NES_W + x] = color;
 }
 
-uint8_t ppu_init(_ppu* ppu) {
-    ppu->pixels = (uint32_t *)SDL_calloc(NES_PIXELS, sizeof(uint32_t));
+CNES_RESULT ppu_init(_ppu* ppu) {
+    ppu->pixels = (uint32_t*)SDL_calloc(NES_PIXELS, sizeof(uint32_t));
     if (!ppu->pixels) {
-        SDL_Log("ERROR: Failed to allocate pixel buffer");
-        return 1;
+        fprintf(stderr, "ERROR: Failed to allocate pixel buffer!\n");
+        return CNES_FAILURE;
     }
 
-    return 0;
+    return CNES_SUCCESS;
 }
 
 uint8_t ppu_read(_ppu* ppu, uint16_t addr) {
@@ -647,7 +647,7 @@ void update_shifters(_ppu* ppu) {
     }
 }
 
-void ppu_update_nmi_state(_ppu *ppu) {
+void ppu_update_nmi_state(_ppu* ppu) {
     uint8_t vblank = (ppu->ppustatus & VBLANK) != 0;
     uint8_t enabled = (ppu->ppuctrl & NMI_EN) != 0;
 

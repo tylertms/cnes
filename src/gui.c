@@ -1,6 +1,7 @@
 #include "gui.h"
 #include "PressStart2P-Regular.h"
 #include "cart.h"
+#include "cnes.h"
 #include "cpu.h"
 #include "dcimgui.h"
 #include "nes.h"
@@ -21,7 +22,7 @@
 
 static float g_frame_times[FRAME_HISTORY];
 static int g_frame_times_index = 0;
-static bool g_frame_times_filled = false;
+static uint8_t g_frame_times_filled = false;
 static uint64_t g_last_perf_counter = 0;
 
 static char* game_name(char* path) {
@@ -58,25 +59,25 @@ static void record_frame_time(uint64_t frame_end) {
     g_last_perf_counter = frame_end;
 }
 
-static bool try_set_present_mode(_gui* gui, SDL_GPUPresentMode mode) {
+static CNES_RESULT try_set_present_mode(_gui* gui, SDL_GPUPresentMode mode) {
     if (gui->present_mode == mode) return 0;
 
-    bool success = SDL_SetGPUSwapchainParameters(
+    CNES_RESULT result = !SDL_SetGPUSwapchainParameters(
         gui->gpu_device,
         gui->window,
         SDL_GPU_SWAPCHAINCOMPOSITION_SDR,
         mode
     );
 
-    if (success) {
+    if (result == CNES_SUCCESS) {
         gui->present_mode = mode;
         SDL_Log("Using present mode %d (0=VSYNC, 1=IMMEDIATE, 2=MAILBOX)", (int)mode);
     }
 
-    return success;
+    return result;
 }
 
-static bool configure_present_mode(_gui* gui) {
+static CNES_RESULT configure_present_mode(_gui* gui) {
     for (size_t i = 0; i < PRESENT_MODE_COUNT; i++) {
         PRESENT_MODES[i].supported = SDL_WindowSupportsGPUPresentMode(
             gui->gpu_device,
@@ -98,17 +99,18 @@ static bool configure_present_mode(_gui* gui) {
 
     const size_t num_modes = sizeof(modes) / sizeof(modes[0]);
     for (size_t i = 0; i < num_modes; i++) {
-        if (try_set_present_mode(gui, modes[i])) return true;
+        if (try_set_present_mode(gui, modes[i]) == CNES_SUCCESS)
+            return CNES_SUCCESS;
     }
 
     gui->pending_mode = gui->present_mode;
     gui->needs_mode_update = false;
 
     SDL_Log("Warning: Failed to set preferred present modes, keeping default swapchain parameters!");
-    return false;
+    return CNES_FAILURE;
 }
 
-static bool create_texture(_gui* gui) {
+static CNES_RESULT create_texture(_gui* gui) {
     const SDL_GPUTextureCreateInfo tinfo = {
         .type = SDL_GPU_TEXTURETYPE_2D,
         .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
@@ -119,20 +121,24 @@ static bool create_texture(_gui* gui) {
         .sample_count = SDL_GPU_SAMPLECOUNT_1,
         .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
     };
+
     gui->nes_texture = SDL_CreateGPUTexture(gui->gpu_device, &tinfo);
     if (!gui->nes_texture) {
         SDL_Log("SDL_CreateGPUTexture failed: %s", SDL_GetError());
-        return false;
+        return CNES_FAILURE;
     }
+
     const SDL_GPUTransferBufferCreateInfo transfer_buffer = {
         .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
         .size = NES_PIXELS * sizeof(uint32_t),
     };
+
     gui->nes_transfer = SDL_CreateGPUTransferBuffer(gui->gpu_device, &transfer_buffer);
     if (!gui->nes_transfer) {
         SDL_Log("SDL_CreateGPUTransferBuffer failed: %s", SDL_GetError());
-        return false;
+        return CNES_FAILURE;
     }
+
     const SDL_GPUSamplerCreateInfo sampler_create_info = {
         .min_filter = SDL_GPU_FILTER_NEAREST,
         .mag_filter = SDL_GPU_FILTER_NEAREST,
@@ -141,15 +147,17 @@ static bool create_texture(_gui* gui) {
         .address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
         .address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
     };
+
     gui->nes_sampler = SDL_CreateGPUSampler(gui->gpu_device, &sampler_create_info);
     if (!gui->nes_sampler) {
         SDL_Log("ERROR: SDL_CreateGPUSampler failed: %s", SDL_GetError());
-        return false;
+        return CNES_FAILURE;
     }
-    return true;
+
+    return CNES_SUCCESS;
 }
 
-static bool create_pipeline(_gui* gui) {
+static CNES_RESULT create_pipeline(_gui* gui) {
     SDL_GPUShaderFormat supported = SDL_GetGPUShaderFormats(gui->gpu_device);
     SDL_GPUShaderFormat fmt = 0;
     if (supported & SDL_GPU_SHADERFORMAT_SPIRV) {
@@ -158,7 +166,7 @@ static bool create_pipeline(_gui* gui) {
         fmt = SDL_GPU_SHADERFORMAT_MSL;
     } else {
         SDL_Log("ERROR: No supported shader format (SPIR-V/MSL) available");
-        return false;
+        return CNES_FAILURE;
     }
 
     const uint8_t* vs_code = NULL;
@@ -187,10 +195,11 @@ static bool create_pipeline(_gui* gui) {
         .code_size = vs_size,
         .entrypoint = entry,
     };
+
     gui->nes_vs = SDL_CreateGPUShader(gui->gpu_device, &vs_info);
     if (!gui->nes_vs) {
         SDL_Log("ERROR: SDL_CreateGPUShader (vertex) failed: %s", SDL_GetError());
-        return false;
+        return CNES_FAILURE;
     }
 
     const SDL_GPUShaderCreateInfo fs_info = {
@@ -201,10 +210,11 @@ static bool create_pipeline(_gui* gui) {
         .entrypoint = entry,
         .num_samplers = 1,
     };
+
     gui->nes_fs = SDL_CreateGPUShader(gui->gpu_device, &fs_info);
     if (!gui->nes_fs) {
         SDL_Log("ERROR: SDL_CreateGPUShader (fragment) failed: %s", SDL_GetError());
-        return false;
+        return CNES_FAILURE;
     }
 
     const SDL_GPUVertexInputState vin = (SDL_GPUVertexInputState){0};
@@ -235,12 +245,14 @@ static bool create_pipeline(_gui* gui) {
         .target_info = ti,
         .props = 0,
     };
+
     gui->nes_pipeline = SDL_CreateGPUGraphicsPipeline(gui->gpu_device, &pi);
     if (!gui->nes_pipeline) {
         SDL_Log("ERROR: SDL_CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
-        return false;
+        return CNES_FAILURE;
     }
-    return true;
+
+    return CNES_SUCCESS;
 }
 
 static void upload_texture(_gui* gui, _ppu* ppu, SDL_GPUCommandBuffer* cmdbuf) {
@@ -248,15 +260,13 @@ static void upload_texture(_gui* gui, _ppu* ppu, SDL_GPUCommandBuffer* cmdbuf) {
         return;
 
     uint32_t* dst = (uint32_t*)SDL_MapGPUTransferBuffer(gui->gpu_device, gui->nes_transfer, true);
-    if (!dst)
-        return;
+    if (!dst) return;
 
     memcpy(dst, ppu->pixels, NES_PIXELS * sizeof(uint32_t));
     SDL_UnmapGPUTransferBuffer(gui->gpu_device, gui->nes_transfer);
 
     SDL_GPUCopyPass* copy = SDL_BeginGPUCopyPass(cmdbuf);
-    if (!copy)
-        return;
+    if (!copy) return;
 
     const SDL_GPUTextureTransferInfo xfer = {
         .transfer_buffer = gui->nes_transfer,
@@ -281,7 +291,6 @@ static void upload_texture(_gui* gui, _ppu* ppu, SDL_GPUCommandBuffer* cmdbuf) {
 
 static void draw_view_menu(_gui* gui) {
     if (ImGui_BeginTable("ViewTable", 2, ImGuiTableFlags_SizingStretchProp)) {
-
         ImGui_TableNextRowEx(0, 0.0f);
         ImGui_TableSetColumnIndex(0);
         ImGui_AlignTextToFramePadding();
@@ -301,8 +310,8 @@ static void draw_view_menu(_gui* gui) {
         if (ImGui_BeginCombo("##pres_mode", preview, 0)) {
             for (int i = 0; i < PRESENT_MODE_COUNT; i++) {
                 const _present_mode* option = &PRESENT_MODES[i];
-                bool selected = (gui->present_mode == option->mode);
-                bool supported = SDL_WindowSupportsGPUPresentMode(gui->gpu_device, gui->window, option->mode);
+                uint8_t selected = (gui->present_mode == option->mode);
+                uint8_t supported = SDL_WindowSupportsGPUPresentMode(gui->gpu_device, gui->window, option->mode);
 
                 if (!supported) ImGui_BeginDisabled(true);
 
@@ -476,12 +485,12 @@ static void draw_main_menu(_gui* gui, _nes* nes) {
     }
 }
 
-uint8_t gui_init(_gui* gui) {
+CNES_RESULT gui_init(_gui* gui) {
     memset(gui, 0, sizeof(_gui));
 
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS) == false) {
         SDL_Log("ERROR: SDL_Init failed: %s", SDL_GetError());
-        return 1;
+        return CNES_FAILURE;
     }
 
     gui->window = SDL_CreateWindow(
@@ -494,7 +503,7 @@ uint8_t gui_init(_gui* gui) {
     if (!gui->window) {
         SDL_Log("ERROR: SDL_CreateWindow failed: %s", SDL_GetError());
         gui_deinit(gui);
-        return 1;
+        return CNES_FAILURE;
     }
 
     gui->gpu_device = SDL_CreateGPUDevice(
@@ -505,27 +514,27 @@ uint8_t gui_init(_gui* gui) {
     if (!gui->gpu_device) {
         SDL_Log("ERROR: SDL_CreateGPUDevice failed: %s", SDL_GetError());
         gui_deinit(gui);
-        return 1;
+        return CNES_FAILURE;
     }
 
-    if (!SDL_ClaimWindowForGPUDevice(gui->gpu_device, gui->window)) {
+    if (SDL_ClaimWindowForGPUDevice(gui->gpu_device, gui->window) == false) {
         SDL_Log("ERROR: SDL_ClaimWindowForGPUDevice failed: %s", SDL_GetError());
         gui_deinit(gui);
-        return 1;
+        return CNES_FAILURE;
     }
 
-    if (!configure_present_mode(gui)) {
-        return 1;
+    if (configure_present_mode(gui) != CNES_SUCCESS) {
+        return CNES_FAILURE;
     }
 
-    if (!create_texture(gui)) {
+    if (create_texture(gui) != CNES_SUCCESS) {
         gui_deinit(gui);
-        return 1;
+        return CNES_FAILURE;
     }
 
-    if (!create_pipeline(gui)) {
+    if (create_pipeline(gui) != CNES_SUCCESS) {
         gui_deinit(gui);
-        return 1;
+        return CNES_FAILURE;
     }
 
     CIMGUI_CHECKVERSION();
@@ -587,8 +596,9 @@ uint8_t gui_init(_gui* gui) {
     return 0;
 }
 
-uint64_t gui_draw(_gui* gui, _nes* nes) {
-    if (!gui || !gui->window || !gui->gpu_device) return 0;
+void gui_draw(_gui* gui, _nes* nes) {
+    if (!gui || !gui->window || !gui->gpu_device)
+        return;
 
     if (gui->needs_mode_update) {
         SDL_WaitForGPUIdle(gui->gpu_device);
@@ -597,15 +607,15 @@ uint64_t gui_draw(_gui* gui, _nes* nes) {
     }
 
     SDL_GPUCommandBuffer* cmdbuf = SDL_AcquireGPUCommandBuffer(gui->gpu_device);
-    if (!cmdbuf) return 0;
+    if (!cmdbuf) return;
 
     upload_texture(gui, &nes->ppu, cmdbuf);
 
     SDL_GPUTexture* swapchain_tex = NULL;
     uint32_t sw = 0, sh = 0;
-    if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmdbuf, gui->window, &swapchain_tex, &sw, &sh) || !swapchain_tex) {
+    if ((SDL_WaitAndAcquireGPUSwapchainTexture(cmdbuf, gui->window, &swapchain_tex, &sw, &sh) == false) || !swapchain_tex) {
         SDL_CancelGPUCommandBuffer(cmdbuf);
-        return SDL_GetPerformanceCounter();
+        return;
     }
 
     cImGui_ImplSDLGPU3_NewFrame();
@@ -688,11 +698,10 @@ uint64_t gui_draw(_gui* gui, _nes* nes) {
         ImGui_RenderPlatformWindowsDefault();
     }
 
-    uint64_t frame_end = SDL_GetPerformanceCounter();
+    uint64_t end_time = SDL_GetPerformanceCounter();
     SDL_SubmitGPUCommandBuffer(cmdbuf);
 
-    record_frame_time(frame_end);
-    return frame_end;
+    record_frame_time(end_time);
 }
 
 void gui_deinit(_gui* gui) {

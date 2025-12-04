@@ -4,22 +4,22 @@
 #include <string.h>
 #include <stdlib.h>
 
-uint8_t cart_load(_cart* cart) {
+CNES_RESULT cart_load(_cart* cart) {
     FILE* rom = fopen(cart->rom_path, "rb");
     if (rom == NULL) {
         fprintf(stderr, "ERROR: Failed to open .nes file!\n");
-        return 1;
+        return CNES_FAILURE;
     }
 
     uint8_t header[0x10];
     if (fread(header, 1, 0x10, rom) != 0x10) {
         fprintf(stderr, "ERROR: Failed to read header from .nes file!\n");
-        return 1;
+        return CNES_FAILURE;
     };
 
     if (memcmp(header, "NES\x1A", 4)) {
         fprintf(stderr, "ERROR: .nes file is not valid!\n");
-        return 1;
+        return CNES_FAILURE;
     }
 
     cart->prg_rom_banks = header[4];
@@ -36,9 +36,9 @@ uint8_t cart_load(_cart* cart) {
     if (nes2) parse_nes2(cart, header);
     else parse_ines(cart, header);
 
-    if (mapper_load(cart)) {
+    if (mapper_load(cart) != CNES_SUCCESS) {
         fprintf(stderr, "ERROR: Failed to find and initialize mapper!\n");
-        return 1;
+        return CNES_FAILURE;
     }
 
     if (cart->trainer)
@@ -71,7 +71,7 @@ uint8_t cart_load(_cart* cart) {
         size_t prg_rom_read = fread(cart->prg_rom.data, 0x01, prg_rom_size, rom);
         if (prg_rom_read != prg_rom_size) {
             fprintf(stderr, "ERROR: Failed to read program rom from .nes file!\n");
-            return 1;
+            return CNES_FAILURE;
         }
     }
 
@@ -85,7 +85,7 @@ uint8_t cart_load(_cart* cart) {
         size_t chr_rom_read = fread(cart->chr_rom.data, 0x01, chr_rom_size, rom);
         if (chr_rom_read != chr_rom_size) {
             fprintf(stderr, "ERROR: Failed to read character rom from .nes file!\n");
-            return 1;
+            return CNES_FAILURE;
         }
     }
 
@@ -121,7 +121,7 @@ uint8_t cart_load(_cart* cart) {
         };
     }
 
-    return 0;
+    return CNES_SUCCESS;
 }
 
 void cart_unload(_cart* cart) {
@@ -160,14 +160,12 @@ void cart_unload(_cart* cart) {
     }
 }
 
-uint8_t parse_ines(_cart* cart, uint8_t header[16]) {
+void parse_ines(_cart* cart, uint8_t header[16]) {
     cart->prg_ram_banks = header[8];
     cart->tv_system = header[9] & 0x01;
-
-    return 0;
 }
 
-uint8_t parse_nes2(_cart* cart, uint8_t header[16]) {
+void parse_nes2(_cart* cart, uint8_t header[16]) {
     cart->mapper_id |= (uint16_t)header[8] << 8;
     cart->prg_rom_banks |= (uint16_t)(header[9] & 0x0F) << 8;
     cart->chr_rom_banks |= (uint16_t)(header[9] & 0xF0) << 4;
@@ -180,8 +178,6 @@ uint8_t parse_nes2(_cart* cart, uint8_t header[16]) {
     cart->cpu_ppu_timing = header[12] & 0x03;
     cart->misc_roms = header[14] & 0x03;
     cart->expansion_device = header[15] & 0x3F;
-
-    return 0;
 }
 
 uint8_t cart_cpu_read(_cart* cart, uint16_t addr) {

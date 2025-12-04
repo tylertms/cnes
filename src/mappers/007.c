@@ -4,21 +4,22 @@ typedef struct _mdata {
     uint8_t prg_bank;
 } _mdata;
 
-uint8_t map_init_7(_cart* cart) {
+CNES_RESULT map_init_7(_cart* cart) {
     _mdata* mdata = calloc(1, sizeof(_mdata));
+    if (mdata == NULL) return CNES_FAILURE;
     cart->mapper.data = mdata;
 
     mdata->prg_bank = 0;
     cart->mirror = MIRROR_SINGLE0;
-    return 0;
+    return CNES_SUCCESS;
 }
 
-uint8_t map_deinit_7(_cart* cart) {
+CNES_RESULT map_deinit_7(_cart* cart) {
     free(cart->mapper.data);
-    return 0;
+    return CNES_SUCCESS;
 }
 
-uint8_t map_irq_pending_7(_cart *cart) {
+CNES_RESULT map_irq_pending_7(_cart* cart) {
     (void)cart;
     return 0;
 }

@@ -1,7 +1,5 @@
 #include "apu.h"
-#include "SDL3/SDL_audio.h"
 #include "cpu.h"
-#include <SDL3/SDL_hints.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -18,7 +16,7 @@ static inline float dc_block(_apu* apu, float x) {
     return y;
 }
 
-static inline float ramp_gain(float current, int gate, int *ramp_counter) {
+static inline float ramp_gain(float current, int gate, int* ramp_counter) {
     float target = gate ? 1.0f : 0.0f;
     if (*ramp_counter <= 0) {
         if (current != target) {
@@ -73,7 +71,7 @@ void open_audio_stream(_apu* apu) {
     }
 }
 
-uint8_t apu_init(_apu* apu) {
+CNES_RESULT apu_init(_apu* apu) {
     apu->audio_stream = NULL;
     apu->audio_retry = 0;
     apu->sample_count = 0;
@@ -82,10 +80,10 @@ uint8_t apu_init(_apu* apu) {
 
     if (!apu->audio_stream) {
         fprintf(stderr, "ERROR: Failed to open audio stream: %s\n", SDL_GetError());
-        return 1;
+        return CNES_FAILURE;
     }
 
-    return 0;
+    return CNES_SUCCESS;
 }
 
 void apu_deinit(_apu* apu) {
@@ -114,7 +112,7 @@ void apu_reset(_apu* apu) {
     apu->dmc.silence = 1;
 }
 
-void apu_flush_audio(_apu *apu) {
+void apu_flush_audio(_apu* apu) {
     if (!apu->audio_stream) return;
 
     if (apu->sample_count > 0) {
@@ -407,14 +405,14 @@ void dmc_cpu_write(_apu* apu, uint16_t addr, uint8_t data) {
     }
 }
 
-static inline void clock_quarter_frame(_apu *apu) {
+static inline void clock_quarter_frame(_apu* apu) {
     clock_pulse_envelope(&apu->pulse1);
     clock_pulse_envelope(&apu->pulse2);
     clock_noise_envelope(&apu->noise);
     clock_triangle_linear(&apu->triangle);
 }
 
-static inline void clock_half_frame(_apu *apu) {
+static inline void clock_half_frame(_apu* apu) {
     clock_pulse_length(&apu->pulse1);
     clock_pulse_length(&apu->pulse2);
     clock_noise_length(&apu->noise);
@@ -479,7 +477,7 @@ void clock_pulse_length(_pulse* p) {
     }
 }
 
-static uint16_t pulse_sweep_target(_pulse *p, int is_pulse1) {
+static uint16_t pulse_sweep_target(_pulse* p, int is_pulse1) {
     int16_t period = (int16_t)(p->timer & 0x7FF);
     int16_t delta = (int16_t)(period >> p->shift);
     int16_t target;
