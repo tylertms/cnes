@@ -139,9 +139,9 @@ int main(int argc, char** argv) {
                     } else if (shortcut_pressed && event.key.key == SDLK_Q) {
                         nes.cpu.halt = 1;
                         continue;
-                    } else {
-                        SDL_HideCursor();
                     }
+                } else {
+                    SDL_HideCursor();
                 }
 
                 break;
