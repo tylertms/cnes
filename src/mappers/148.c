@@ -10,11 +10,16 @@ CNES_RESULT map_init_148(_cart* cart) {
     if (mdata == NULL) return CNES_FAILURE;
     cart->mapper.data = mdata;
 
+    mdata->prg_bank = 0;
+    mdata->chr_bank = 0;
+
     return CNES_SUCCESS;
 }
 
 CNES_RESULT map_deinit_148(_cart* cart) {
-    free(cart->mapper.data);
+    if (cart->mapper.data) {
+        free(cart->mapper.data);
+    }
     return CNES_SUCCESS;
 }
 
@@ -29,9 +34,8 @@ uint8_t map_cpu_read_148(_cart* cart, uint16_t addr) {
 
     if (0x8000 <= addr && addr <= 0xFFFF) {
         uint32_t offset = (mdata->prg_bank * 0x8000) + (addr & 0x7FFF);
-        if (cart->prg_rom.size)         data = cart->prg_rom.data[offset];
-        else if (cart->prg_ram.size)    data = cart->prg_ram.data[offset];
-        else if (cart->prg_nvram.size)  data = cart->prg_nvram.data[offset];
+        if (cart->prg_rom.size) data = cart->prg_rom.data[offset % cart->prg_rom.size];
+        else if (cart->prg_ram.size) data = cart->prg_ram.data[offset % cart->prg_ram.size];
     }
 
     return data;
@@ -50,10 +54,9 @@ uint8_t map_ppu_read_148(_cart* cart, uint16_t addr) {
     _mdata* mdata = cart->mapper.data;
 
     if (0x0000 <= addr && addr <= 0x1FFF) {
-        uint16_t offset = (mdata->chr_bank * 0x2000) + (addr & 0x1FFF);
-        if (cart->chr_rom.size)         data = cart->chr_rom.data[offset];
-        else if (cart->chr_ram.size)    data = cart->chr_ram.data[offset];
-        else if (cart->chr_nvram.size)  data = cart->chr_nvram.data[offset];
+        uint32_t offset = (mdata->chr_bank * 0x2000) + (addr & 0x1FFF);
+        if (cart->chr_rom.size) data = cart->chr_rom.data[offset % cart->chr_rom.size];
+        else if (cart->chr_ram.size) data = cart->chr_ram.data[offset % cart->chr_ram.size];
     }
 
     return data;
@@ -63,9 +66,8 @@ void map_ppu_write_148(_cart* cart, uint16_t addr, uint8_t data) {
     _mdata* mdata = cart->mapper.data;
 
     if (0x0000 <= addr && addr <= 0x1FFF) {
-        uint16_t offset = (mdata->chr_bank * 0x2000) + (addr & 0x1FFF);
-        if (cart->chr_ram.size)    cart->chr_ram.data[offset] = data;
-        else if (cart->chr_nvram.size)  cart->chr_nvram.data[offset] = data;
+        uint32_t offset = (mdata->chr_bank * 0x2000) + (addr & 0x1FFF);
+        if (cart->chr_ram.size) cart->chr_ram.data[offset % cart->chr_ram.size] = data;
     }
 }
 
