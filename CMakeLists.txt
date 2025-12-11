@@ -47,7 +47,6 @@ set(NES_VERT_MSL_HDR ${NES_SHADER_GEN_DIR}/nes_vert_msl.h)
 set(NES_FRAG_MSL_HDR ${NES_SHADER_GEN_DIR}/nes_frag_msl.h)
 
 if (CNES_BUILD_SHADERS)
-    # Dev / local builds: regenerate shaders from GLSL
     add_custom_command(
         OUTPUT
             ${NES_VERT_SPV_HDR}
@@ -123,6 +122,14 @@ target_link_options(cnes PRIVATE
     $<$<CONFIG:Debug>:-fsanitize=address>
     $<$<CONFIG:Release>:-flto>
 )
+
+if(WIN32)
+    if(MSVC)
+        set_property(TARGET cnes PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    else()
+        target_link_options(cnes PRIVATE -static)
+    endif()
+endif()
 
 target_compile_definitions(cnes PRIVATE
     CMAKE_BUILD_TYPE_STR="$<CONFIG>"
